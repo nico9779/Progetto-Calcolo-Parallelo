@@ -11,16 +11,10 @@ typedef vector<vector<int>> matrix;
 matrix initializeMatrix(int n) {
 
 	matrix temp;
+	temp.reserve(n);
 
 	for(int i=0; i<n; i++){
-
-		vector<int> elements;
-
-		for(int j=0; j<n; j++){
-			elements.push_back(0);
-		}
-
-		temp.push_back(elements);	
+		temp.push_back(vector<int>(n, 0));	
 	}
 
 	return temp;
@@ -30,16 +24,10 @@ matrix initializeMatrix(int n) {
 matrix initializeMatrix(int row, int col) {
 
 	matrix temp;
+	temp.reserve(row);
 
 	for(int i=0; i<row; i++){
-
-		vector<int> elements;
-
-		for(int j=0; j<col; j++){
-			elements.push_back(0);
-		}
-
-		temp.push_back(elements);	
+		temp.push_back(vector<int>(col, 0));	
 	}
 
 	return temp;
@@ -232,8 +220,7 @@ int main() {
 			vector<int> elements;
 
 			for(int j=0; j<cA; j++) {
-				int element = rand()%101;
-				elements.push_back(element);
+				elements.push_back(rand()%101);
 			}
 
 			A.push_back(elements);
@@ -244,8 +231,7 @@ int main() {
 			vector<int> elements;
 
 			for(int j=0; j<cB; j++) {
-				int element = rand()%101;
-				elements.push_back(element);
+				elements.push_back(rand()%101);
 			}
 
 			B.push_back(elements);
@@ -266,13 +252,7 @@ int main() {
 			}
 
 		} else {
-
-			vector<int> elements;
-			for(int k=0; k<n; k++) {
-				elements.push_back(0);
-			}
-
-			A.push_back(elements);
+			A.push_back(vector<int>(n,0));
 		}
 		
 	}
@@ -286,13 +266,7 @@ int main() {
 			}
 
 		} else {
-
-			vector<int> elements;
-			for(int k=0; k<n; k++) {
-				elements.push_back(0);
-			}
-
-			B.push_back(elements);
+			B.push_back(vector<int>(n,0));
 		}
 		
 	}
