@@ -97,9 +97,8 @@ matrix strassenMatrix(matrix A, matrix B, int n) {
 	matrix C = initializeMatrix(n);
 
 	// Base case
-	if(n == 1) {
-		C[0][0] = A[0][0] * B[0][0];
-    	return C;
+	if(n <=64) {
+		return multiplyMatrix(A, B, n, n, n);
 	}
 
 	// Dimension of the matrices is the half of the input size
@@ -290,7 +289,7 @@ int main() {
 	auto stop = chrono::high_resolution_clock::now();
 
 	auto duration = chrono::duration_cast<chrono::milliseconds>(stop - start);
-	showMatrix(C, rA, cB);
+	//showMatrix(C, rA, cB);
 	cout <<"Time for multiplying matrices using Strassen: "<<duration.count()<<" ms"<< endl;
 	
 	return 0;

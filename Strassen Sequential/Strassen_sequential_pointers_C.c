@@ -18,45 +18,30 @@ int findMax(int values[]) {
 }
 
 // Allocate memory to store square matrix
-int** allocateSquareMatrixMemory(int n) {
+int* allocateSquareMatrixMemory(int n) {
 
-    int** temp = (int**) malloc(n * sizeof(int*));
-    for(int i=0; i<n; i++) {
-        temp[i] = (int*) malloc(n * sizeof(int));
-    }
+    int* temp = (int*) malloc(n * n * sizeof(int));
 
     return temp;
 }
 
 // Allocate memory to store matrix
-int** allocateMatrixMemory(int row, int col) {
+int* allocateMatrixMemory(int rows, int cols) {
 
-    int** temp = (int**) malloc(row * sizeof(int*));
-    for(int i=0; i<row; i++) {
-        temp[i] = (int*) malloc(col * sizeof(int));
-    }
+    int* temp = (int*) malloc(rows * cols * sizeof(int));
 
     return temp;
 }
 
-// Deallocate matrix memory
-void deallocateMatrixMemory(int** M, int n) {
-
-	for(int i=0; i<n; i++) {
-		free(M[i]);
-	}
-
-	free(M);
-}
-
 // Add two square matrices
-int** addMatrix(int** M1, int** M2, int n) {
+int* addMatrix(int* M1, int* M2, int n) {
 
-	int** temp = allocateSquareMatrixMemory(n);
+	int* temp = allocateSquareMatrixMemory(n);
 
 	for(int i=0; i<n; i++) {
 		for(int j=0; j<n; j++) {
-			temp[i][j] = M1[i][j] + M2[i][j];
+			int index = i*n+j;
+			temp[index] = M1[index] + M2[index];
 		}
 	}
 
@@ -64,13 +49,14 @@ int** addMatrix(int** M1, int** M2, int n) {
 }
 
 // Subtract two square matrices
-int** subtractMatrix(int** M1, int** M2, int n) {
+int* subtractMatrix(int* M1, int* M2, int n) {
 
-	int** temp = allocateSquareMatrixMemory(n);
+	int* temp = allocateSquareMatrixMemory(n);
 
     for(int i=0; i<n; i++) {
 		for(int j=0; j<n; j++) {
-			temp[i][j] = M1[i][j] - M2[i][j];
+			int index = i*n+j;
+			temp[index] = M1[index] - M2[index];
 		}  
 	}
         
@@ -78,15 +64,16 @@ int** subtractMatrix(int** M1, int** M2, int n) {
 }
 
 // Multiply two matrices using standard definition
-int** multiplyMatrix(int** A, int** B, int rA, int cA, int cB) {
+int* multiplyMatrix(int* A, int* B, int rA, int cA, int cB) {
 
-	int** C = allocateMatrixMemory(rA, cB);
+	int* C = allocateMatrixMemory(rA, cB);
 
 	for(int i = 0; i < rA; i++) {
 		for(int j = 0; j < cB; j++) {
-            C[i][j] = A[i][0] * B[0][j];
+			int index = i*cB+j;
+            C[index] = A[i*cA] * B[j];
 			for(int k = 1; k < cA; k++) {
-				C[i][j] += A[i][k] * B[k][j];
+				C[index] += A[i*cA+k] * B[k*cB+j];
 			}
 		}
 	}
@@ -95,11 +82,11 @@ int** multiplyMatrix(int** A, int** B, int rA, int cA, int cB) {
 }
 
 // Print matrix in output
-void showMatrix(int** M, int row, int col) {
+void showMatrix(int* M, int rows, int cols) {
 
-	for(int i=0; i<row; i++) {
-		for(int j=0; j<col; j++) {
-			printf("%d ", M[i][j]);
+	for(int i=0; i<rows; i++) {
+		for(int j=0; j<cols; j++) {
+			printf("%d ", M[i*cols+j]);
 		}
 		printf("\n");
 	}
@@ -108,7 +95,7 @@ void showMatrix(int** M, int row, int col) {
 }
 
 // Multiply two matrices using Strassen algorithm
-int** strassenMatrix(int** A, int** B, int n) {
+int* strassenMatrix(int* A, int* B, int n) {
 
 	// Base case
 	if(n <= 64) {
@@ -116,112 +103,118 @@ int** strassenMatrix(int** A, int** B, int n) {
 	}
 
 	// Initialize matrix C to return in output (C = A*B)
-	int** C = allocateSquareMatrixMemory(n);
+	int* C = allocateSquareMatrixMemory(n);
 
 	// Dimension of the matrices is the half of the input size
 	int k = n/2;
 
 	// Decompose A and B into 8 submatrices
-	int** A11 = allocateSquareMatrixMemory(k);
-	int** A12 = allocateSquareMatrixMemory(k);
-	int** A21 = allocateSquareMatrixMemory(k);
-	int** A22 = allocateSquareMatrixMemory(k);
-	int** B11 = allocateSquareMatrixMemory(k);
-	int** B12 = allocateSquareMatrixMemory(k);
-	int** B21 = allocateSquareMatrixMemory(k);
-	int** B22 = allocateSquareMatrixMemory(k);
+	int* A11 = allocateSquareMatrixMemory(k);
+	int* A12 = allocateSquareMatrixMemory(k);
+	int* A21 = allocateSquareMatrixMemory(k);
+	int* A22 = allocateSquareMatrixMemory(k);
+	int* B11 = allocateSquareMatrixMemory(k);
+	int* B12 = allocateSquareMatrixMemory(k);
+	int* B21 = allocateSquareMatrixMemory(k);
+	int* B22 = allocateSquareMatrixMemory(k);
 
 	for(int i=0; i<k; i++) {
 		for(int j=0; j<k; j++) {
-			A11[i][j] = A[i][j];
-			A12[i][j] = A[i][k+j];
-			A21[i][j] = A[k+i][j];
-			A22[i][j] = A[k+i][k+j];
-			B11[i][j] = B[i][j];
-			B12[i][j] = B[i][k+j];
-			B21[i][j] = B[k+i][j];
-			B22[i][j] = B[k+i][k+j];
+			int index = i*k+j;
+			int index_1 = i*n+j;
+			int index_2 = i*n+k+j;
+			int index_3 = (k+i)*n+j;
+			int index_4 = (k+i)*n+k+j;
+			A11[index] = A[index_1];
+			A12[index] = A[index_2];
+			A21[index] = A[index_3];
+			A22[index] = A[index_4];
+			B11[index] = B[index_1];
+			B12[index] = B[index_2];
+			B21[index] = B[index_3];
+			B22[index] = B[index_4];
     	}
 	}
 
 	// Create support matrices in order to calculate Strassen matrices
-	int** M1 = subtractMatrix(B12, B22, k);
-	int** M2 = addMatrix(A11, A12, k);
-	int** M3 = addMatrix(A21, A22, k);
-	int** M4 = subtractMatrix(B21, B11, k);
-	int** M5 = addMatrix(A11, A22, k);
-	int** M6 = addMatrix(B11, B22, k);
-	int** M7 = subtractMatrix(A12, A22, k);
-	int** M8 = addMatrix(B21, B22, k);
-	int** M9 = subtractMatrix(A11, A21, k);
-	int** M10 = addMatrix(B11, B12, k);
+	int* M1 = subtractMatrix(B12, B22, k);
+	int* M2 = addMatrix(A11, A12, k);
+	int* M3 = addMatrix(A21, A22, k);
+	int* M4 = subtractMatrix(B21, B11, k);
+	int* M5 = addMatrix(A11, A22, k);
+	int* M6 = addMatrix(B11, B22, k);
+	int* M7 = subtractMatrix(A12, A22, k);
+	int* M8 = addMatrix(B21, B22, k);
+	int* M9 = subtractMatrix(A11, A21, k);
+	int* M10 = addMatrix(B11, B12, k);
 
 	// Create the Strassen matrices
-	int** P1 = strassenMatrix(A11, M1, k);
-	int** P2 = strassenMatrix(M2, B22, k);
-	int** P3 = strassenMatrix(M3, B11, k);
-	int** P4 = strassenMatrix(A22, M4, k);
-	int** P5 = strassenMatrix(M5, M6, k);
-	int** P6 = strassenMatrix(M7, M8, k);
-	int** P7 = strassenMatrix(M9, M10, k);
+	int* P1 = strassenMatrix(A11, M1, k);
+	int* P2 = strassenMatrix(M2, B22, k);
+	int* P3 = strassenMatrix(M3, B11, k);
+	int* P4 = strassenMatrix(A22, M4, k);
+	int* P5 = strassenMatrix(M5, M6, k);
+	int* P6 = strassenMatrix(M7, M8, k);
+	int* P7 = strassenMatrix(M9, M10, k);
 
-    deallocateMatrixMemory(A11, k);
-    deallocateMatrixMemory(A12, k);
-    deallocateMatrixMemory(A21, k);
-    deallocateMatrixMemory(A22, k);
-    deallocateMatrixMemory(B11, k);
-    deallocateMatrixMemory(B12, k);
-    deallocateMatrixMemory(B21, k);
-    deallocateMatrixMemory(B22, k);
+	free(A11);
+    free(A12);
+	free(A21);
+	free(A22);
+	free(B11);
+	free(B12);
+	free(B21);
+	free(B22);
 
-	deallocateMatrixMemory(M1, k);
-	deallocateMatrixMemory(M2, k);
-	deallocateMatrixMemory(M3, k);
-	deallocateMatrixMemory(M4, k);
-	deallocateMatrixMemory(M5, k);
-	deallocateMatrixMemory(M6, k);
-	deallocateMatrixMemory(M7, k);
-	deallocateMatrixMemory(M8, k);
-	deallocateMatrixMemory(M9, k);
-	deallocateMatrixMemory(M10, k);
+	free(M1);
+	free(M2);
+	free(M3);
+	free(M4);
+	free(M5);
+	free(M6);
+	free(M7);
+	free(M8);
+	free(M9);
+	free(M10);
 
-	int** M11 = addMatrix(P5, P4, k);
-	int** M12 = addMatrix(M11, P6, k);
-	int** M13 = addMatrix(P5, P1, k);
-	int** M14 = subtractMatrix(M13, P3, k);
+	int* M11 = addMatrix(P5, P4, k);
+	int* M12 = addMatrix(M11, P6, k);
+	int* M13 = addMatrix(P5, P1, k);
+	int* M14 = subtractMatrix(M13, P3, k);
 
 	// Compose matrix C from the submatrices
-	int** C11 = subtractMatrix(M12, P2, k);
-	int** C12 = addMatrix(P1, P2, k);
-	int** C21 = addMatrix(P3, P4, k);
-	int** C22 = subtractMatrix(M14, P7, k);
+	int* C11 = subtractMatrix(M12, P2, k);
+	int* C12 = addMatrix(P1, P2, k);
+	int* C21 = addMatrix(P3, P4, k);
+	int* C22 = subtractMatrix(M14, P7, k);
 
-    deallocateMatrixMemory(P1, k);
-    deallocateMatrixMemory(P2, k);
-    deallocateMatrixMemory(P3, k);
-    deallocateMatrixMemory(P4, k);
-    deallocateMatrixMemory(P5, k);
-    deallocateMatrixMemory(P6, k);
-    deallocateMatrixMemory(P7, k);
+    free(P1);
+	free(P2);
+	free(P3);
+	free(P4);
+	free(P5);
+	free(P6);
+	free(P7);
 
-	deallocateMatrixMemory(M11, k);
-	deallocateMatrixMemory(M12, k);
-	deallocateMatrixMemory(M13, k);
-	deallocateMatrixMemory(M14, k);
+	free(M11);
+	free(M12);
+	free(M13);
+	free(M14);
 
 	for(int i=0; i<k; i++) {
 		for(int j=0; j<k; j++) {
-			C[i][j] = C11[i][j];
-			C[i][j+k] = C12[i][j];
-			C[k+i][j] = C21[i][j];
-			C[k+i][k+j] = C22[i][j];
+			int index = i*k+j;
+			C[i*n+j] = C11[index];
+			C[i*n+j+k] = C12[index];
+			C[(k+i)*n+j] = C21[index];
+			C[(k+i)*n+k+j] = C22[index];
     	}
 	}
 
-    deallocateMatrixMemory(C11, k);
-    deallocateMatrixMemory(C12, k);
-    deallocateMatrixMemory(C21, k);
-    deallocateMatrixMemory(C22, k);
+    free(C11);
+	free(C12);
+	free(C21);
+	free(C22);
     
 	return C;
 }
@@ -229,25 +222,23 @@ int** strassenMatrix(int** A, int** B, int n) {
 int main() {
 
 	int rA, cA, rB, cB;
-	int** A;
-    int** B;
-    int** C;
+	int *A, *B, *C;
     clock_t start, end;
     double duration;
 
-	printf("\n Enter number of rows for matrix A: ");
+	printf("\nEnter number of rows for matrix A: ");
     scanf("%d", &rA);
-   	printf("\n Enter number of columns for matrix A: ");
+   	printf("\nEnter number of columns for matrix A: ");
     scanf("%d", &cA);
 
-   	printf("\n Enter number of rows for matrix B: ");
+   	printf("\nEnter number of rows for matrix B: ");
     scanf("%d", &rB);
-   	printf("\n Enter number of columns for matrix B: ");
+   	printf("\nEnter number of columns for matrix B: ");
     scanf("%d", &cB);
 
 	// If number of column of A are not equal to number of rows of B the matrices are incompatible
 	if(cA != rB) {
-		printf("Error: incompatible matrices");
+		printf("Error: incompatible matrices\n");
 		return -1;
 	}
 
@@ -257,11 +248,12 @@ int main() {
 	int values[] = {rA, cA, rB, cB};
 	int n = pow(2, ceil(log2(findMax(values))));
 
+	// Allocate memory for matrices A and B
     A = allocateSquareMatrixMemory(n);
     B = allocateSquareMatrixMemory(n);
 
 	int x;
-	printf("\n Enter 0 to insert elements of matrices or enter 1 to generate matrices randomly \n");
+	printf("\nEnter 0 to insert elements of matrices or enter 1 to generate matrices randomly\n");
 	scanf("%d", &x);
 
 	if(x == 0) {
@@ -269,7 +261,7 @@ int main() {
 
 		for(int i=0; i<rA; i++){
 			for(int j=0; j<cA; j++){
-				scanf("%d", &A[i][j]);
+				scanf("%d", &A[i*cA+j]);
 			}
 		}
 
@@ -277,7 +269,7 @@ int main() {
 
 		for(int i=0; i<rB; i++){
 			for(int j=0; j<cB; j++){
-				scanf("%d", &B[i][j]);
+				scanf("%d", &B[i*cB+j]);
 			}
 		}
 	}
@@ -287,28 +279,29 @@ int main() {
 
 		for(int i=0; i<rA; i++){
 			for(int j=0; j<cA; j++) {
-				A[i][j] = rand()%101;
+				A[i*cA+j] = rand()%101;
 			}
 		}
 
 		for(int i=0; i<rB; i++){
 			for(int j=0; j<cB; j++) {
-				B[i][j] =  rand()%101;
+				B[i*cB+j] =  rand()%101;
 			}
 		}
 	}
 
+	// Fill matrices with zeros to make n*n matrices if necessary
 	for(int i=0; i<n; i++) {
 
 		if(i<rA) {
 
 			for(int j=cA; j<n; j++) {
-				A[i][j] = 0;
+				A[i*cA+j] = 0;
 			}
 
 		} else {
 			for(int k=0; k<n; k++) {
-				A[i][k] = 0;
+				A[i*cA+k] = 0;
 			}
 		}
 	}
@@ -318,13 +311,13 @@ int main() {
 		if(i<rB) {
 
 			for(int j=cB; j<n; j++) {
-				B[i][j] = 0;
+				B[i*cB+j] = 0;
 			}
 
 		} else {
 
 			for(int k=0; k<n; k++) {
-				B[i][k] = 0;
+				B[i*cB+k] = 0;
 			}
 		}
 	}
@@ -352,7 +345,7 @@ int main() {
 	// 	printf("Time for multiplying matrices using Strassen: %f ms\n", duration);
 	// }
 
-	// Multiply matrices using Strassen and meausure time
+	// Multiply matrices using Strassen and measure time
 	start = clock();
 
 	C = strassenMatrix(A, B, n);
@@ -363,9 +356,9 @@ int main() {
 	//showMatrix(C, rA, cB);
 	printf("Time for multiplying matrices using Strassen: %f ms\n", duration);
 
-	deallocateMatrixMemory(A, n);
-	deallocateMatrixMemory(B, n);
-	deallocateMatrixMemory(C, n);
+	free(A);
+	free(B);
+	free(C);
 	
 	return 0;
 }
