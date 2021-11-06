@@ -266,8 +266,10 @@ int main(int argc, char **argv) {
 
         // Calculate time to run Strassen sequential algorithm
         start = MPI_Wtime();
-        strassenMatrix(A, B, n);
+        int *C = strassenMatrix(A, B, n);
         end = MPI_Wtime();
+
+        free(C);
 
         printf("Time took sequential Strassen: %f ms\n", (end-start)*1000);
 
@@ -352,9 +354,9 @@ int main(int argc, char **argv) {
         B12 = (int*) malloc(num_elements * sizeof(int));
         A11 = (int*) malloc(num_elements * sizeof(int));
         B22 = (int*) malloc(num_elements * sizeof(int));
+        MPI_Irecv(A11, num_elements, MPI_INT, 0, 1, MPI_COMM_WORLD, &req[1]);
         MPI_Irecv(A12, num_elements, MPI_INT, 0, 1, MPI_COMM_WORLD, &req[1]);
         MPI_Irecv(B12, num_elements, MPI_INT, 0, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Irecv(A11, num_elements, MPI_INT, 0, 1, MPI_COMM_WORLD, &req[1]);
         MPI_Irecv(B22, num_elements, MPI_INT, 0, 1, MPI_COMM_WORLD, &req[1]);
         MPI_Wait(&req[1], &status);
 
