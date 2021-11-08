@@ -56,8 +56,11 @@ int* multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
 
     int num_elements = n*n/size;
 
+    int* local_A = (int*) malloc(num_elements * sizeof(int));
+    int* local_C = (int*) malloc(num_elements * sizeof(int));
+
     // Scatter matrix A between all processors
-    MPI_Scatter(A, num_elements, MPI_INT, A, num_elements, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Scatter(A, num_elements, MPI_INT, local_A, num_elements, MPI_INT, root, MPI_COMM_WORLD);
 
     // Broadcast matrix B between all processors
     MPI_Bcast(B, n*n, MPI_INT, root, MPI_COMM_WORLD);
@@ -66,15 +69,19 @@ int* multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     for(int i=0; i<n/size; i++) {
         for(int j=0; j<n; j++) {
             int index = i*n+j;
-            C[index] = A[i*n] * B[j];
+            local_C[index] = local_A[i*n] * B[j];
             for(int k=1; k<n; k++) {
-                C[index] += A[i*n+k] * B[k*n+j];
+                local_C[index] += local_A[i*n+k] * B[k*n+j];
             }
         }
     }
 
+    free(local_A);
+
     // Gather C from all processors to compute the product
-    MPI_Gather(C, num_elements, MPI_INT, C, num_elements, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Gather(local_C, num_elements, MPI_INT, C, num_elements, MPI_INT, root, MPI_COMM_WORLD);
+
+    free(local_C);
 }
 
 // Print matrix in output
