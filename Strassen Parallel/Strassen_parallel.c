@@ -517,10 +517,8 @@ int main(int argc, char **argv) {
     if(rank == 0) {
         int *C11, *C12, *C21, *C22, *C;
         C = (int*) malloc(n * n * sizeof(int));
-        C11 = (int*) malloc(num_elements * sizeof(int));
         C12 = (int*) malloc(num_elements * sizeof(int));
         C21 = (int*) malloc(num_elements * sizeof(int));
-        C22 = (int*) malloc(num_elements * sizeof(int));
         
         MPI_Irecv(C12, num_elements, MPI_INT, 1, 4, MPI_COMM_WORLD, &req[4]);
         MPI_Irecv(P3, num_elements, MPI_INT, 1, 4, MPI_COMM_WORLD, &req[4]);
