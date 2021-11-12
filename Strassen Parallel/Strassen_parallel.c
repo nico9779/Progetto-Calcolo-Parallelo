@@ -36,14 +36,12 @@ int* subtractMatrix(int* M1, int* M2, int n) {
 // Multiply two matrices sequentially using standard definition
 int* multiplyMatrixSequential(int* A, int* B, int n) {
 
-	int* C = (int*) malloc(n * n * sizeof(int));
+	int* C = (int*) calloc(n * n, sizeof(int));
 
 	for(int i = 0; i < n; i++) {
-		for(int j = 0; j < n; j++) {
-			int index = i*n+j;
-            C[index] = A[i*n] * B[j];
-			for(int k = 1; k < n; k++) {
-				C[index] += A[i*n+k] * B[k*n+j];
+		for(int k = 0; k < n; k++) {
+			for(int j = 0; j < n; j++) {
+				C[i*n+j] += A[i*n+k] * B[k*n+j];
 			}
 		}
 	}
@@ -57,7 +55,7 @@ int* multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     int num_elements = n*n/size;
 
     int* local_A = (int*) malloc(num_elements * sizeof(int));
-    int* local_C = (int*) malloc(num_elements * sizeof(int));
+    int* local_C = (int*) calloc(num_elements, sizeof(int));
 
     // Scatter matrix A between all processors
     MPI_Scatter(A, num_elements, MPI_INT, local_A, num_elements, MPI_INT, root, MPI_COMM_WORLD);
@@ -67,11 +65,9 @@ int* multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     
     // Multiply the two matrices to obtain a piece of matrix C
     for(int i=0; i<n/size; i++) {
-        for(int j=0; j<n; j++) {
-            int index = i*n+j;
-            local_C[index] = local_A[i*n] * B[j];
-            for(int k=1; k<n; k++) {
-                local_C[index] += local_A[i*n+k] * B[k*n+j];
+        for(int k=0; k<n; k++) {
+            for(int j=0; j<n; j++) {
+                local_C[i*n+j] += local_A[i*n+k] * B[k*n+j];
             }
         }
     }
@@ -224,7 +220,7 @@ int* strassenMatrix(int* A, int* B, int n) {
 
 int main(int argc, char **argv) {
 
-    const int n = 1024;
+    const int n = 4096;
     const int k = n/2;
     const int num_elements = k*k;
 
