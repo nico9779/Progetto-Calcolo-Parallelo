@@ -87,11 +87,20 @@ void subtractMatrixParallel(int* M1, int* M2, int* M, int root, int n, int size)
 int* multiplyMatrixSequential(int* A, int* B, int n) {
 
 	int* C = (int*) calloc(n * n, sizeof(int));
+    int a = 0;
 
 	for(int i = 0; i < n; i++) {
 		for(int k = 0; k < n; k++) {
-			for(int j = 0; j < n; j++) {
-				C[i*n+j] += A[i*n+k] * B[k*n+j];
+            a = A[i*n+k];
+			for(int j = 0; j < n; j+=8) {
+                C[i*n+j] += a * B[k*n+j];
+                C[i*n+j+1] += a * B[k*n+j+1];
+                C[i*n+j+2] += a * B[k*n+j+2];
+                C[i*n+j+3] += a * B[k*n+j+3];
+                C[i*n+j+4] += a * B[k*n+j+4];
+                C[i*n+j+5] += a * B[k*n+j+5];
+                C[i*n+j+6] += a * B[k*n+j+6];
+                C[i*n+j+7] += a * B[k*n+j+7];
 			}
 		}
 	}
@@ -114,10 +123,19 @@ void multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     MPI_Bcast(B, n*n, MPI_INT, root, MPI_COMM_WORLD);
     
     // Multiply the two matrices to obtain a piece of matrix C
+    int a = 0;
     for(int i=0; i<n/size; i++) {
         for(int k=0; k<n; k++) {
-            for(int j=0; j<n; j++) {
-                local_C[i*n+j] += local_A[i*n+k] * B[k*n+j];
+            a = local_A[i*n+k];
+            for(int j=0; j<n; j+=8) {
+                local_C[i*n+j] += a * B[k*n+j];
+                local_C[i*n+j+1] += a * B[k*n+j+1];
+                local_C[i*n+j+2] += a * B[k*n+j+2];
+                local_C[i*n+j+3] += a * B[k*n+j+3];
+                local_C[i*n+j+4] += a * B[k*n+j+4];
+                local_C[i*n+j+5] += a * B[k*n+j+5];
+                local_C[i*n+j+6] += a * B[k*n+j+6];
+                local_C[i*n+j+7] += a * B[k*n+j+7];
             }
         }
     }
