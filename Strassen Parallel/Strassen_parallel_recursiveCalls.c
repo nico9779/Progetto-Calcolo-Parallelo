@@ -382,8 +382,8 @@ int main(int argc, char **argv) {
 
         for(int i=0; i<n; i++){
             for(int j=0; j<n; j++){
-                A[i*n+j] = rand()%11+1;
-                B[i*n+j] = rand()%11+1;
+                A[i*n+j] = rand()%10+1;
+                B[i*n+j] = rand()%10+1;
             }
         }
 
