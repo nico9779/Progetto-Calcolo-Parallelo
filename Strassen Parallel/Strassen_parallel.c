@@ -37,11 +37,20 @@ int* subtractMatrix(int* M1, int* M2, int n) {
 int* multiplyMatrixSequential(int* A, int* B, int n) {
 
 	int* C = (int*) calloc(n * n, sizeof(int));
+	int a = 0;
 
 	for(int i = 0; i < n; i++) {
 		for(int k = 0; k < n; k++) {
-			for(int j = 0; j < n; j++) {
-				C[i*n+j] += A[i*n+k] * B[k*n+j];
+            a = A[i*n+k];
+			for(int j = 0; j < n; j+=8) {
+                C[i*n+j] += a * B[k*n+j];
+                C[i*n+j+1] += a * B[k*n+j+1];
+                C[i*n+j+2] += a * B[k*n+j+2];
+                C[i*n+j+3] += a * B[k*n+j+3];
+                C[i*n+j+4] += a * B[k*n+j+4];
+                C[i*n+j+5] += a * B[k*n+j+5];
+                C[i*n+j+6] += a * B[k*n+j+6];
+                C[i*n+j+7] += a * B[k*n+j+7];
 			}
 		}
 	}
@@ -64,10 +73,19 @@ void multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     MPI_Bcast(B, n*n, MPI_INT, root, MPI_COMM_WORLD);
     
     // Multiply the two matrices to obtain a piece of matrix C
+    int a = 0;
     for(int i=0; i<n/size; i++) {
         for(int k=0; k<n; k++) {
-            for(int j=0; j<n; j++) {
-                local_C[i*n+j] += local_A[i*n+k] * B[k*n+j];
+            a = local_A[i*n+k];
+            for(int j=0; j<n; j+=8) {
+                local_C[i*n+j] += a * B[k*n+j];
+                local_C[i*n+j+1] += a * B[k*n+j+1];
+                local_C[i*n+j+2] += a * B[k*n+j+2];
+                local_C[i*n+j+3] += a * B[k*n+j+3];
+                local_C[i*n+j+4] += a * B[k*n+j+4];
+                local_C[i*n+j+5] += a * B[k*n+j+5];
+                local_C[i*n+j+6] += a * B[k*n+j+6];
+                local_C[i*n+j+7] += a * B[k*n+j+7];
             }
         }
     }
@@ -229,23 +247,17 @@ int main(int argc, char **argv) {
     MPI_Status status;
     double start, end;
 
-    // Allocate memory for the matrices to multiply in Strassen algorithm
+
     int *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
-    M1 = (int*) malloc(num_elements * sizeof(int));
     M2 = (int*) malloc(num_elements * sizeof(int));
-    M3 = (int*) malloc(num_elements * sizeof(int));
     M4 = (int*) malloc(num_elements * sizeof(int));
-    M5 = (int*) malloc(num_elements * sizeof(int));
     M6 = (int*) malloc(num_elements * sizeof(int));
-    M7 = (int*) malloc(num_elements * sizeof(int));
     M8 = (int*) malloc(num_elements * sizeof(int));
-    M9 = (int*) malloc(num_elements * sizeof(int));
     M10 = (int*) malloc(num_elements * sizeof(int));
-    M11 = (int*) malloc(num_elements * sizeof(int));
     M12 = (int*) malloc(num_elements * sizeof(int));
-    M13 = (int*) malloc(num_elements * sizeof(int));
     M14 = (int*) malloc(num_elements * sizeof(int));
 
+    int *P1, *P2, *P3, *P4, *P5, *P6, *P7;
     
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -279,7 +291,7 @@ int main(int argc, char **argv) {
         start = MPI_Wtime();
 
         // Decompose A and B into 8 submatrices
-        int *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
+        int *A11, *A12, *A21, *A22, *B11, *B12, *B21, *B22;
         A11 = (int*) malloc(num_elements * sizeof(int));
         A12 = (int*) malloc(num_elements * sizeof(int));
         A21 = (int*) malloc(num_elements * sizeof(int));
@@ -321,12 +333,14 @@ int main(int argc, char **argv) {
         MPI_Isend(A12, num_elements, MPI_INT, 3, 3, MPI_COMM_WORLD, &req[3]);
         MPI_Isend(B21, num_elements, MPI_INT, 3, 3, MPI_COMM_WORLD, &req[3]);
 
+        free(M2);
+        free(M12);
+
         // #0 compute P1 and P6
-        int *T1, *T2, *T3, *T4;
-        T1 = addMatrix(A11, A22, k);
-        T2 = addMatrix(B11, B22, k);
-        T3 = subtractMatrix(A21, A11, k);
-        T4 = addMatrix(B11, B12, k);
+        M1 = addMatrix(A11, A22, k);
+        M2 = addMatrix(B11, B22, k);
+        M11 = subtractMatrix(A21, A11, k);
+        M12 = addMatrix(B11, B12, k);
 
         free(A);
         free(B);
@@ -339,16 +353,8 @@ int main(int argc, char **argv) {
         free(B21);
         free(B22);
 
-        free(M1);
-        free(M2);
-        free(M11);
-        free(M12);
-        
-        M1 = T1;
-        M2 = T2;
-
-        M11 = T3;
-        M12 = T4;
+        P1 = (int*) malloc(num_elements * sizeof(int));
+        P6 = (int*) malloc(num_elements * sizeof(int));
     }
 
     if(rank == 1) {
@@ -365,22 +371,19 @@ int main(int argc, char **argv) {
 
         // #1 compute P3 and P5
 
-        int *T1, *T2;
+        free(M6);
+        free(M10);
 
-        T1 = subtractMatrix(B12, B22, k);
-        T2 = addMatrix(A11, A12, k);
+        M5 = A11;
+        M6 = subtractMatrix(B12, B22, k);
+        M9 = addMatrix(A11, A12, k);
+        M10 = B22;
 
         free(A12);
         free(B12);
-        free(M5);
-        free(M6);
-        free(M9);
-        free(M10);
-        
-        M5 = A11;
-        M6 = T1;
-        M9 = T2;
-        M10 = B22;
+
+        P3 = (int*) malloc(num_elements * sizeof(int));
+        P5 = (int*) malloc(num_elements * sizeof(int));
     }
 
     if(rank == 2) {
@@ -396,22 +399,20 @@ int main(int argc, char **argv) {
         MPI_Wait(&req[2], &status);
 
         // #2 compute P2 and P4
-        int *T1, *T2;
 
-        T1 = addMatrix(A21, A22, k);
-        T2 = subtractMatrix(B21, B11, k);  
+        free(M4);
+        free(M8);
+
+        M3 = addMatrix(A21, A22, k);
+        M4 = B11;
+        M7 = A22;
+        M8 = subtractMatrix(B21, B11, k);  
 
         free(A21);
         free(B21);
-        free(M3);
-        free(M4);
-        free(M7);
-        free(M8);
-        
-        M3 = T1;
-        M4 = B11;
-        M7 = A22;
-        M8 = T2;
+
+        P2 = (int*) malloc(num_elements * sizeof(int));
+        P4 = (int*) malloc(num_elements * sizeof(int));
     }
 
     if(rank == 3) {
@@ -428,32 +429,18 @@ int main(int argc, char **argv) {
 
         // #3 compute P7
 
-        int *T1, *T2;
+        free(M14);
 
-        T1 = subtractMatrix(A12, A22, k);
-        T2 = addMatrix(B21, B22, k);
+        M13 = subtractMatrix(A12, A22, k);
+        M14 = addMatrix(B21, B22, k);
 
         free(A22);
         free(B22);
         free(A12);
         free(B21);
-        free(M13);
-        free(M14);
-        
-        M13 = T1;
-        M14 = T2;
-    }
 
-    int *P1, *P2, *P3, *P4, *P5, *P6, *P7;
-
-    // Allocate memory for the Strassen products
-    P1 = (int*) malloc(num_elements * sizeof(int));
-    P2 = (int*) malloc(num_elements * sizeof(int));
-    P3 = (int*) malloc(num_elements * sizeof(int));
-    P4 = (int*) malloc(num_elements * sizeof(int));
-    P5 = (int*) malloc(num_elements * sizeof(int));
-    P6 = (int*) malloc(num_elements * sizeof(int));
-    P7 = (int*) malloc(num_elements * sizeof(int));
+        P7 = (int*) malloc(num_elements * sizeof(int));
+    }   
 
     // Multiply matrices in parallel
     multiplyMatrixParallel(M1, M2, P1, 0, k, size);
@@ -464,20 +451,11 @@ int main(int argc, char **argv) {
     multiplyMatrixParallel(M11, M12, P6, 0, k, size);
     multiplyMatrixParallel(M13, M14, P7, 3, k, size);
 
-    free(M1);
-    free(M2);
-    free(M3);
-    free(M4);
-    free(M5);
-    free(M6);
-    free(M7);
-    free(M8);
-    free(M9);
-    free(M10);
-    free(M11);
-    free(M12);
-    free(M13);
-    free(M14);
+
+    if(rank == 0) {
+        free(M1);
+        free(M11);
+    }
 
     if(rank == 1) {
         int *C12;
@@ -490,6 +468,10 @@ int main(int argc, char **argv) {
         MPI_Isend(P5, num_elements, MPI_INT, 0, 4, MPI_COMM_WORLD, &req[4]);
 
         free(C12);
+        free(M5);
+        free(M9);
+        free(P3);
+        free(P5);
     }
 
     if(rank == 2) {
@@ -503,18 +485,39 @@ int main(int argc, char **argv) {
         MPI_Isend(P4, num_elements, MPI_INT, 0, 5, MPI_COMM_WORLD, &req[5]);
 
         free(C21);
+        free(M3);
+        free(M7);
+        free(P2);
+        free(P4);
     }
 
     if(rank == 3) {
         // Send to #0 matrices to calculate C
         MPI_Isend(P7, num_elements, MPI_INT, 0, 6, MPI_COMM_WORLD, &req[6]);
+
+        free(M13);
+        free(P7);
     }
+
+    free(M2);
+    free(M4);
+    free(M6);
+    free(M8);
+    free(M10);
+    free(M12);
+    free(M14);
 
     if(rank == 0) {
         int *C11, *C12, *C21, *C22, *C;
         C = (int*) malloc(n * n * sizeof(int));
         C12 = (int*) malloc(num_elements * sizeof(int));
         C21 = (int*) malloc(num_elements * sizeof(int));
+
+        P3 = (int*) malloc(num_elements * sizeof(int));
+        P5 = (int*) malloc(num_elements * sizeof(int));
+        P2 = (int*) malloc(num_elements * sizeof(int));
+        P4 = (int*) malloc(num_elements * sizeof(int));
+        P7 = (int*) malloc(num_elements * sizeof(int));
         
         MPI_Irecv(C12, num_elements, MPI_INT, 1, 4, MPI_COMM_WORLD, &req[4]);
         MPI_Irecv(P3, num_elements, MPI_INT, 1, 4, MPI_COMM_WORLD, &req[4]);
@@ -564,15 +567,15 @@ int main(int argc, char **argv) {
         free(C);
 
         end = MPI_Wtime();
-    }
 
-    free(P1);
-    free(P2);
-    free(P3);
-    free(P4);
-    free(P5);
-    free(P6);
-    free(P7);
+        free(P1);
+        free(P2);
+        free(P3);
+        free(P4);
+        free(P5);
+        free(P6);
+        free(P7);
+    }
 
     MPI_Finalize();
 
