@@ -296,30 +296,15 @@ int main(int argc, char **argv) {
     double start, end;
 
     int *A11, *A12, *A21, *A22, *B11, *B12, *B21, *B22;
-    A11 = (int*) malloc(num_elements * sizeof(int));
-    A12 = (int*) malloc(num_elements * sizeof(int));
-    A21 = (int*) malloc(num_elements * sizeof(int));
-    A22 = (int*) malloc(num_elements * sizeof(int));
-    B11 = (int*) malloc(num_elements * sizeof(int));
-    B12 = (int*) malloc(num_elements * sizeof(int));
-    B21 = (int*) malloc(num_elements * sizeof(int));
-    B22 = (int*) malloc(num_elements * sizeof(int));
 
     // Allocate memory for the matrices to multiply in Strassen algorithm
     int *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
-    M1 = (int*) malloc(num_elements * sizeof(int));
     M2 = (int*) malloc(num_elements * sizeof(int));
-    M3 = (int*) malloc(num_elements * sizeof(int));
     M4 = (int*) malloc(num_elements * sizeof(int));
-    M5 = (int*) malloc(num_elements * sizeof(int));
     M6 = (int*) malloc(num_elements * sizeof(int));
-    M7 = (int*) malloc(num_elements * sizeof(int));
     M8 = (int*) malloc(num_elements * sizeof(int));
-    M9 = (int*) malloc(num_elements * sizeof(int));
     M10 = (int*) malloc(num_elements * sizeof(int));
-    M11 = (int*) malloc(num_elements * sizeof(int));
     M12 = (int*) malloc(num_elements * sizeof(int));
-    M13 = (int*) malloc(num_elements * sizeof(int));
     M14 = (int*) malloc(num_elements * sizeof(int));
 
     
@@ -355,6 +340,14 @@ int main(int argc, char **argv) {
         start = MPI_Wtime();
 
         // Decompose A and B into 8 submatrices
+        A11 = (int*) malloc(num_elements * sizeof(int));
+        A12 = (int*) malloc(num_elements * sizeof(int));
+        A21 = (int*) malloc(num_elements * sizeof(int));
+        A22 = (int*) malloc(num_elements * sizeof(int));
+        B11 = (int*) malloc(num_elements * sizeof(int));
+        B12 = (int*) malloc(num_elements * sizeof(int));
+        B21 = (int*) malloc(num_elements * sizeof(int));
+        B22 = (int*) malloc(num_elements * sizeof(int));
 
         for(int i=0; i<k; i++) {
             for(int j=0; j<k; j++) {
@@ -376,39 +369,45 @@ int main(int argc, char **argv) {
 
         free(A);
         free(B);
+
+        M1 = (int*) malloc(num_elements * sizeof(int));
+        M3 = (int*) malloc(num_elements * sizeof(int));
+        M9 = (int*) malloc(num_elements * sizeof(int));
+        M11 = (int*) malloc(num_elements * sizeof(int));
+        M13 = (int*) malloc(num_elements * sizeof(int));
+
+        free(M4);
+        free(M10);
+
+        M4 = B11;
+        M5 = A11;
+        M7 = A22;
+        M10 = B22;
     }
 
     addMatrixParallel(A11, A22, M1, 0, k, size);
     addMatrixParallel(B11, B22, M2, 0, k, size);
     addMatrixParallel(A21, A22, M3, 0, k, size);
-    M4 = B11;
-    M5 = A11;
     subtractMatrixParallel(B12, B22, M6, 0, k, size);
-    M7 = A22;
     subtractMatrixParallel(B21, B11, M8, 0, k, size);
     addMatrixParallel(A11, A12, M9, 0, k, size);
-    M10 = B22;
     subtractMatrixParallel(A21, A11, M11, 0, k, size);
     addMatrixParallel(B11, B12, M12, 0, k, size);
     subtractMatrixParallel(A12, A22, M13, 0, k, size);
     addMatrixParallel(B21, B22, M14, 0, k, size);
 
-    free(A12);
-    free(A21);
-    free(B12);
-    free(B21);
-
-
     int *P1, *P2, *P3, *P4, *P5, *P6, *P7;
 
-    // Allocate memory for the Strassen products
-    P1 = (int*) malloc(num_elements * sizeof(int));
-    P2 = (int*) malloc(num_elements * sizeof(int));
-    P3 = (int*) malloc(num_elements * sizeof(int));
-    P4 = (int*) malloc(num_elements * sizeof(int));
-    P5 = (int*) malloc(num_elements * sizeof(int));
-    P6 = (int*) malloc(num_elements * sizeof(int));
-    P7 = (int*) malloc(num_elements * sizeof(int));
+    if(rank == 0) {
+        // Allocate memory for the Strassen products
+        P1 = (int*) malloc(num_elements * sizeof(int));
+        P2 = (int*) malloc(num_elements * sizeof(int));
+        P3 = (int*) malloc(num_elements * sizeof(int));
+        P4 = (int*) malloc(num_elements * sizeof(int));
+        P5 = (int*) malloc(num_elements * sizeof(int));
+        P6 = (int*) malloc(num_elements * sizeof(int));
+        P7 = (int*) malloc(num_elements * sizeof(int));
+    }
 
     // Multiply matrices in parallel
     multiplyMatrixParallel(M1, M2, P1, 0, k, size);
@@ -419,32 +418,44 @@ int main(int argc, char **argv) {
     multiplyMatrixParallel(M11, M12, P6, 0, k, size);
     multiplyMatrixParallel(M13, M14, P7, 0, k, size);
 
-    free(M1);
+    
     free(M2);
-    free(M3);
     free(M4);
-    free(M5);
     free(M6);
-    free(M7);
     free(M8);
-    free(M9);
     free(M10);
-    free(M11);
     free(M12);
-    free(M13);
     free(M14);
 
+    if(rank == 0) {
+        free(M1);
+        free(M3);
+        free(M5);
+        free(M7);
+        free(M9);
+        free(M11);
+        free(M13);
+
+        free(A12);
+        free(A21);
+        free(B12);
+        free(B21);
+    }
+
     int *C11, *C12, *C21, *C22;
-    C11 = (int*) malloc(num_elements * sizeof(int));
-    C12 = (int*) malloc(num_elements * sizeof(int));
-    C21 = (int*) malloc(num_elements * sizeof(int));
-    C22 = (int*) malloc(num_elements * sizeof(int));
-    
     int *T1, *T2, *T3, *T4;
-    T1 = (int*) malloc(num_elements * sizeof(int));
-    T2 = (int*) malloc(num_elements * sizeof(int));
-    T3 = (int*) malloc(num_elements * sizeof(int));
-    T4 = (int*) malloc(num_elements * sizeof(int));
+
+    if(rank == 0) {
+        C11 = (int*) malloc(num_elements * sizeof(int));
+        C12 = (int*) malloc(num_elements * sizeof(int));
+        C21 = (int*) malloc(num_elements * sizeof(int));
+        C22 = (int*) malloc(num_elements * sizeof(int));
+
+        T1 = (int*) malloc(num_elements * sizeof(int));
+        T2 = (int*) malloc(num_elements * sizeof(int));
+        T3 = (int*) malloc(num_elements * sizeof(int));
+        T4 = (int*) malloc(num_elements * sizeof(int));
+    }
 
     addMatrixParallel(P1, P4, T1, 0, k, size);
     subtractMatrixParallel(T1, P5, T2, 0, k, size);
@@ -455,20 +466,21 @@ int main(int argc, char **argv) {
     addMatrixParallel(T3, P3, T4, 0, k, size);
     addMatrixParallel(T4, P6, C22, 0, k, size);
 
-    free(P1);
-    free(P2);
-    free(P3);
-    free(P4);
-    free(P5);
-    free(P6);
-    free(P7);
-
-    free(T1);
-    free(T2);
-    free(T3);
-    free(T4);
-
     if(rank == 0) {
+        
+        free(P1);
+        free(P2);
+        free(P3);
+        free(P4);
+        free(P5);
+        free(P6);
+        free(P7);
+
+        free(T1);
+        free(T2);
+        free(T3);
+        free(T4);
+
         int *C = (int*) malloc(n * n * sizeof(int));
 
         // Compute matrix C
@@ -485,15 +497,15 @@ int main(int argc, char **argv) {
 
         //printMatrix(C, n, n);
 
+        free(C11);
+        free(C12);
+        free(C21);
+        free(C22);
+
         free(C);
 
         end = MPI_Wtime();
     }
-
-    free(C11);
-    free(C12);
-    free(C21);
-    free(C22);
 
     MPI_Finalize();
 
