@@ -20,7 +20,7 @@ int findMax(int values[]) {
 // Allocate memory to store square matrix
 int* allocateSquareMatrixMemory(int n) {
 
-    int* temp = (int*) malloc(n * n * sizeof(int));
+    int* temp = (int*) calloc(n * n, sizeof(int));
 
     return temp;
 }
@@ -28,7 +28,7 @@ int* allocateSquareMatrixMemory(int n) {
 // Allocate memory to store matrix
 int* allocateMatrixMemory(int rows, int cols) {
 
-    int* temp = (int*) malloc(rows * cols * sizeof(int));
+    int* temp = (int*) calloc(rows * cols, sizeof(int));
 
     return temp;
 }
@@ -64,16 +64,56 @@ int* subtractMatrix(int* M1, int* M2, int n) {
 }
 
 // Multiply two matrices using standard definition
+int* multiplyMatrix1(int* A, int* B, int rA, int cA, int cB) {
+
+	int* C = allocateMatrixMemory(rA, cB);
+	int* temp = (int*) malloc(rA * cA * sizeof(int));
+	int local_sum, t1, t2, t3, t4;
+
+	for(int i = 0; i < rA; i++){
+		for(int j = 0; j < cA; j++){
+			temp[i*rA+j] = B[j*rA+i];
+		}
+	}
+
+	for(int i = 0; i < rA; i++) {
+		int* p1 = &A[i*cA];
+		for(int j = 0; j < cB; j++) {
+			int* p2 = &temp[j*cB];
+			local_sum = 0;
+			for(int k = 0; k < cA; k+=4) {
+				t1 = *(p1+k) * *(p2+k);
+				t2 = *(p1+k+1) * *(p2+k+1);
+				t3 = *(p1+k+2) * *(p2+k+2);
+				t4 = *(p1+k+3) * *(p2+k+3);
+				local_sum += (t1+t2)+(t3+t4);
+			}
+			C[i*cB+j] = local_sum;
+		}
+	}
+
+	free(temp);
+
+	return C;
+}
+
 int* multiplyMatrix(int* A, int* B, int rA, int cA, int cB) {
 
 	int* C = allocateMatrixMemory(rA, cB);
+	int a = 0;
 
 	for(int i = 0; i < rA; i++) {
-		for(int j = 0; j < cB; j++) {
-			int index = i*cB+j;
-            C[index] = A[i*cA] * B[j];
-			for(int k = 1; k < cA; k++) {
-				C[index] += A[i*cA+k] * B[k*cB+j];
+		for(int k = 0; k < cA; k++) {
+			a = A[i*cA+k];
+			for(int j = 0; j < cB; j+=8) {
+				C[i*cB+j] += a * B[k*cB+j];
+				C[i*cB+j+1] += a * B[k*cB+j+1];
+				C[i*cB+j+2] += a * B[k*cB+j+2];
+				C[i*cB+j+3] += a * B[k*cB+j+3];
+				C[i*cB+j+4] += a * B[k*cB+j+4];
+				C[i*cB+j+5] += a * B[k*cB+j+5];
+				C[i*cB+j+6] += a * B[k*cB+j+6];
+				C[i*cB+j+7] += a * B[k*cB+j+7];
 			}
 		}
 	}
@@ -279,13 +319,13 @@ int main() {
 
 		for(int i=0; i<rA; i++){
 			for(int j=0; j<cA; j++) {
-				A[i*cA+j] = rand()%101;
+				A[i*cA+j] = rand()%10+1;
 			}
 		}
 
 		for(int i=0; i<rB; i++){
 			for(int j=0; j<cB; j++) {
-				B[i*cB+j] =  rand()%101;
+				B[i*cB+j] =  rand()%10+1;
 			}
 		}
 	}
@@ -323,15 +363,15 @@ int main() {
 	}
 
 	// Multiply matrices using standard definition
-	//start = clock();
+	start = clock();
 
-	//C = multiplyMatrix(A, B, rA, cA, cB);
+	C = multiplyMatrix(A, B, rA, cA, cB);
 
-	//end = clock();
+	end = clock();
 
-	//duration = ((double) (end - start)) / CLOCKS_PER_SEC * 1000;
+	duration = ((double) (end - start)) / CLOCKS_PER_SEC * 1000;
 	//showMatrix(C, rA, cB);
-	//printf("Time for multiplying matrices using definition: %f ms\n", duration);
+	printf("Time for multiplying matrices using definition: %f ms\n", duration);
 
 	// Best value for the base case is 64
 	// for(int i=2; i<11; i++) {
