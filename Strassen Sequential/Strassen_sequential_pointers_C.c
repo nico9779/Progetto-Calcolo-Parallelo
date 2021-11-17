@@ -3,6 +3,8 @@
 #include <math.h>
 #include <time.h>
 
+#define CHUNK 16
+
 // Find maximum between four values
 int findMax(int values[]) {
 
@@ -64,7 +66,7 @@ int* subtractMatrix(int* M1, int* M2, int n) {
 }
 
 // Multiply two matrices using standard definition
-int* multiplyMatrix1(int* A, int* B, int rA, int cA, int cB) {
+int* multiplyMatrixTransposition(int* A, int* B, int rA, int cA, int cB) {
 
 	int* C = allocateMatrixMemory(rA, cB);
 	int* temp = (int*) malloc(rA * cA * sizeof(int));
@@ -97,7 +99,7 @@ int* multiplyMatrix1(int* A, int* B, int rA, int cA, int cB) {
 	return C;
 }
 
-int* multiplyMatrix(int* A, int* B, int rA, int cA, int cB) {
+int* multiplyMatrixIKJ(int* A, int* B, int rA, int cA, int cB) {
 
 	int* C = allocateMatrixMemory(rA, cB);
 	int a = 0;
@@ -120,6 +122,56 @@ int* multiplyMatrix(int* A, int* B, int rA, int cA, int cB) {
 
 	return C;
 }
+
+int* multiplyMatrixKIJ(int* A, int* B, int rA, int cA, int cB) {
+
+	int* C = allocateMatrixMemory(rA, cB);
+	int a = 0;
+
+	for(int k = 0; k < cA; k++) {
+		for(int i = 0; i < rA; i++) {
+			a = A[i*cA+k];
+			for(int j = 0; j < cB; j+=8) {
+				C[i*cB+j] += a * B[k*cB+j];
+				C[i*cB+j+1] += a * B[k*cB+j+1];
+				C[i*cB+j+2] += a * B[k*cB+j+2];
+				C[i*cB+j+3] += a * B[k*cB+j+3];
+				C[i*cB+j+4] += a * B[k*cB+j+4];
+				C[i*cB+j+5] += a * B[k*cB+j+5];
+				C[i*cB+j+6] += a * B[k*cB+j+6];
+				C[i*cB+j+7] += a * B[k*cB+j+7];
+			}
+		}
+	}
+
+	return C;
+}
+
+
+void multiplyMatrixChunk(float **A, float **B, float **C, int n) {
+	float *At1, *Bt1, *Ct1;
+	float *At2, *Bt2, *Ct2;
+	for (int k=0; k<n; k+=CHUNK) {
+		for (int i=0; i<n; i+=CHUNK) {
+			At1 = A[i]+k;
+			for (int j=0; j<n; j+=CHUNK) {
+				Bt1 = B[k]+j;
+				Ct1 = C[i]+j;
+				for (int k1=0; k1<CHUNK; k1++, Bt1+=n, Ct1+=n) {
+					At2 = At1+k1;
+					int i2,i3;
+					for (i2=0; i2<CHUNK; i2++, At2+=n) {
+						float Ac = *At2;
+						for (i3 =0; i3 <CHUNK; i3++) {
+							Ct1[i3]+=Ac* Bt1[i3];
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 // Print matrix in output
 void showMatrix(int* M, int rows, int cols) {
