@@ -4,9 +4,9 @@
 #include <mpi.h>
 
 // Add two square matrices
-int* addMatrix(int* M1, int* M2, int n) {
+float* addMatrix(float* M1, float* M2, int n) {
 
-	int* temp = (int*) malloc(n * n * sizeof(int));
+	float* temp = (float*) malloc(n * n * sizeof(float));
 
 	for(int i=0; i<n; i++) {
 		for(int j=0; j<n; j++) {
@@ -19,9 +19,9 @@ int* addMatrix(int* M1, int* M2, int n) {
 }
 
 // Subtract two square matrices
-int* subtractMatrix(int* M1, int* M2, int n) {
+float* subtractMatrix(float* M1, float* M2, int n) {
 
-	int* temp = (int*) malloc(n * n * sizeof(int));
+	float* temp = (float*) malloc(n * n * sizeof(float));
 
     for(int i=0; i<n; i++) {
 		for(int j=0; j<n; j++) {
@@ -34,10 +34,10 @@ int* subtractMatrix(int* M1, int* M2, int n) {
 }
 
 // Multiply two matrices sequentially using standard definition
-int* multiplyMatrixSequential(int* A, int* B, int n) {
+float* multiplyMatrixSequential(float* A, float* B, int n) {
 
-	int* C = (int*) calloc(n * n, sizeof(int));
-    int a = 0;
+	float* C = (float*) calloc(n * n, sizeof(float));
+    float a = 0;
 
 	for(int i = 0; i < n; i++) {
 		for(int k = 0; k < n; k++) {
@@ -59,21 +59,21 @@ int* multiplyMatrixSequential(int* A, int* B, int n) {
 }
 
 // Multiply two matrices in parallel
-void multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
+void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int size) {
 
     int num_elements = n*n/size;
 
-    int* local_A = (int*) malloc(num_elements * sizeof(int));
-    int* local_C = (int*) calloc(num_elements, sizeof(int));
+    float* local_A = (float*) malloc(num_elements * sizeof(float));
+    float* local_C = (float*) calloc(num_elements, sizeof(float));
 
     // Scatter matrix A between all processors
-    MPI_Scatter(A, num_elements, MPI_INT, local_A, num_elements, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Scatter(A, num_elements, MPI_FLOAT, local_A, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
 
     // Broadcast matrix B between all processors
-    MPI_Bcast(B, n*n, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Bcast(B, n*n, MPI_FLOAT, root, MPI_COMM_WORLD);
     
     // Multiply the two matrices to obtain a piece of matrix C
-    int a = 0;
+    float a = 0;
     for(int i=0; i<n/size; i++) {
         for(int k=0; k<n; k++) {
             a = local_A[i*n+k];
@@ -93,17 +93,17 @@ void multiplyMatrixParallel(int* A, int* B, int* C, int root, int n, int size) {
     free(local_A);
 
     // Gather C from all processors to compute the product
-    MPI_Gather(local_C, num_elements, MPI_INT, C, num_elements, MPI_INT, root, MPI_COMM_WORLD);
+    MPI_Gather(local_C, num_elements, MPI_FLOAT, C, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
 
     free(local_C);
 }
 
 // Print matrix in output
-void printMatrix(int* M, int rows, int cols) {
+void printMatrix(float* M, int n) {
 
-	for(int i=0; i<rows; i++) {
-		for(int j=0; j<cols; j++) {
-			printf("%d ", M[i*cols+j]);
+	for(int i=0; i<n; i++) {
+		for(int j=0; j<n; j++) {
+			printf("%f  ", M[i*n+j]);
 		}
 		printf("\n");
 	}
@@ -112,7 +112,7 @@ void printMatrix(int* M, int rows, int cols) {
 }
 
 // Multiply two matrices using Strassen algorithm
-int* strassenMatrix(int* A, int* B, int n) {
+float* strassenMatrix(float* A, float* B, int n) {
 
 	// Base case
 	if(n <= 64) {
@@ -120,20 +120,20 @@ int* strassenMatrix(int* A, int* B, int n) {
 	}
 
 	// Initialize matrix C to return in output (C = A*B)
-	int* C = (int*) malloc(n * n * sizeof(int));
+	float* C = (float*) malloc(n * n * sizeof(float));
 
 	// Dimension of the matrices is the half of the input size
 	int k = n/2;
 
 	// Decompose A and B into 8 submatrices
-	int* A11 = (int*) malloc(k * k * sizeof(int));
-	int* A12 = (int*) malloc(k * k * sizeof(int));
-	int* A21 = (int*) malloc(k * k * sizeof(int));
-	int* A22 = (int*) malloc(k * k * sizeof(int));
-	int* B11 = (int*) malloc(k * k * sizeof(int));
-	int* B12 = (int*) malloc(k * k * sizeof(int));
-	int* B21 = (int*) malloc(k * k * sizeof(int));
-	int* B22 = (int*) malloc(k * k * sizeof(int));
+	float* A11 = (float*) malloc(k * k * sizeof(float));
+	float* A12 = (float*) malloc(k * k * sizeof(float));
+	float* A21 = (float*) malloc(k * k * sizeof(float));
+	float* A22 = (float*) malloc(k * k * sizeof(float));
+	float* B11 = (float*) malloc(k * k * sizeof(float));
+	float* B12 = (float*) malloc(k * k * sizeof(float));
+	float* B21 = (float*) malloc(k * k * sizeof(float));
+	float* B22 = (float*) malloc(k * k * sizeof(float));
 
 	for(int i=0; i<k; i++) {
 		for(int j=0; j<k; j++) {
@@ -154,25 +154,25 @@ int* strassenMatrix(int* A, int* B, int n) {
 	}
 
 	// Create support matrices in order to calculate Strassen matrices
-	int* M1 = subtractMatrix(B12, B22, k);
-	int* M2 = addMatrix(A11, A12, k);
-	int* M3 = addMatrix(A21, A22, k);
-	int* M4 = subtractMatrix(B21, B11, k);
-	int* M5 = addMatrix(A11, A22, k);
-	int* M6 = addMatrix(B11, B22, k);
-	int* M7 = subtractMatrix(A12, A22, k);
-	int* M8 = addMatrix(B21, B22, k);
-	int* M9 = subtractMatrix(A11, A21, k);
-	int* M10 = addMatrix(B11, B12, k);
+	float* M1 = subtractMatrix(B12, B22, k);
+	float* M2 = addMatrix(A11, A12, k);
+	float* M3 = addMatrix(A21, A22, k);
+	float* M4 = subtractMatrix(B21, B11, k);
+	float* M5 = addMatrix(A11, A22, k);
+	float* M6 = addMatrix(B11, B22, k);
+	float* M7 = subtractMatrix(A12, A22, k);
+	float* M8 = addMatrix(B21, B22, k);
+	float* M9 = subtractMatrix(A11, A21, k);
+	float* M10 = addMatrix(B11, B12, k);
 
 	// Create the Strassen matrices
-	int* P1 = strassenMatrix(A11, M1, k);
-	int* P2 = strassenMatrix(M2, B22, k);
-	int* P3 = strassenMatrix(M3, B11, k);
-	int* P4 = strassenMatrix(A22, M4, k);
-	int* P5 = strassenMatrix(M5, M6, k);
-	int* P6 = strassenMatrix(M7, M8, k);
-	int* P7 = strassenMatrix(M9, M10, k);
+	float* P1 = strassenMatrix(A11, M1, k);
+	float* P2 = strassenMatrix(M2, B22, k);
+	float* P3 = strassenMatrix(M3, B11, k);
+	float* P4 = strassenMatrix(A22, M4, k);
+	float* P5 = strassenMatrix(M5, M6, k);
+	float* P6 = strassenMatrix(M7, M8, k);
+	float* P7 = strassenMatrix(M9, M10, k);
 
 	free(A11);
     free(A12);
@@ -194,16 +194,16 @@ int* strassenMatrix(int* A, int* B, int n) {
 	free(M9);
 	free(M10);
 
-	int* M11 = addMatrix(P5, P4, k);
-	int* M12 = addMatrix(M11, P6, k);
-	int* M13 = addMatrix(P5, P1, k);
-	int* M14 = subtractMatrix(M13, P3, k);
+	float* M11 = addMatrix(P5, P4, k);
+	float* M12 = addMatrix(M11, P6, k);
+	float* M13 = addMatrix(P5, P1, k);
+	float* M14 = subtractMatrix(M13, P3, k);
 
 	// Compose matrix C from the submatrices
-	int* C11 = subtractMatrix(M12, P2, k);
-	int* C12 = addMatrix(P1, P2, k);
-	int* C21 = addMatrix(P3, P4, k);
-	int* C22 = subtractMatrix(M14, P7, k);
+	float* C11 = subtractMatrix(M12, P2, k);
+	float* C12 = addMatrix(P1, P2, k);
+	float* C21 = addMatrix(P3, P4, k);
+	float* C22 = subtractMatrix(M14, P7, k);
 
     free(P1);
 	free(P2);
@@ -243,30 +243,33 @@ int main(int argc, char **argv) {
     const int num_elements = k*k;
 
     int rank, size;
-    double start, end;
+    double start, end, comm, endProducts;
 
-    int *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
-    M2 = (int*) malloc(num_elements * sizeof(int));
-    M4 = (int*) malloc(num_elements * sizeof(int));
-    M6 = (int*) malloc(num_elements * sizeof(int));
-    M8 = (int*) malloc(num_elements * sizeof(int));
-    M10 = (int*) malloc(num_elements * sizeof(int));
-    M12 = (int*) malloc(num_elements * sizeof(int));
-    M14 = (int*) malloc(num_elements * sizeof(int));
+    float *A, *B;
 
-    int *P1, *P2, *P3, *P4, *P5, *P6, *P7;
+    float *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
+    M2 = (float*) malloc(num_elements * sizeof(float));
+    M4 = (float*) malloc(num_elements * sizeof(float));
+    M6 = (float*) malloc(num_elements * sizeof(float));
+    M8 = (float*) malloc(num_elements * sizeof(float));
+    M10 = (float*) malloc(num_elements * sizeof(float));
+    M12 = (float*) malloc(num_elements * sizeof(float));
+    M14 = (float*) malloc(num_elements * sizeof(float));
+
+    float *P1, *P2, *P3, *P4, *P5, *P6, *P7;
 
     
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    //***** SEQUENTIAL PHASE *****//
+
     if(rank == 0) {
-        int *A, *B;
 
         // Generate matrices A and B
-        A = (int*) malloc(n * n * sizeof(int));
-        B = (int*) malloc(n * n * sizeof(int));
+        A = (float*) malloc(n * n * sizeof(float));
+        B = (float*) malloc(n * n * sizeof(float));
 
         srand(time(NULL));
 
@@ -279,25 +282,31 @@ int main(int argc, char **argv) {
 
         // Calculate time to run Strassen sequential algorithm
         start = MPI_Wtime();
-        int *C = strassenMatrix(A, B, n);
+        float *C = strassenMatrix(A, B, n);
         end = MPI_Wtime();
 
         free(C);
 
         printf("Time took sequential Strassen: %f ms\n", (end-start)*1000);
 
-        start = MPI_Wtime();
+    }
+
+    //***** PARALLEL PHASE *****//
+
+    start = MPI_Wtime();
+
+    if(rank == 0) {
 
         // Decompose A and B into 8 submatrices
-        int *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
-        A11 = (int*) malloc(num_elements * sizeof(int));
-        A12 = (int*) malloc(num_elements * sizeof(int));
-        A21 = (int*) malloc(num_elements * sizeof(int));
-        A22 = (int*) malloc(num_elements * sizeof(int));
-        B11 = (int*) malloc(num_elements * sizeof(int));
-        B12 = (int*) malloc(num_elements * sizeof(int));
-        B21 = (int*) malloc(num_elements * sizeof(int));
-        B22 = (int*) malloc(num_elements * sizeof(int));
+        float *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
+        A11 = (float*) malloc(num_elements * sizeof(float));
+        A12 = (float*) malloc(num_elements * sizeof(float));
+        A21 = (float*) malloc(num_elements * sizeof(float));
+        A22 = (float*) malloc(num_elements * sizeof(float));
+        B11 = (float*) malloc(num_elements * sizeof(float));
+        B12 = (float*) malloc(num_elements * sizeof(float));
+        B21 = (float*) malloc(num_elements * sizeof(float));
+        B22 = (float*) malloc(num_elements * sizeof(float));
 
         for(int i=0; i<k; i++) {
             for(int j=0; j<k; j++) {
@@ -348,14 +357,16 @@ int main(int argc, char **argv) {
         free(B21);
 
         // Allocate memory for the Strassen products
-        P1 = (int*) malloc(num_elements * sizeof(int));
-        P2 = (int*) malloc(num_elements * sizeof(int));
-        P3 = (int*) malloc(num_elements * sizeof(int));
-        P4 = (int*) malloc(num_elements * sizeof(int));
-        P5 = (int*) malloc(num_elements * sizeof(int));
-        P6 = (int*) malloc(num_elements * sizeof(int));
-        P7 = (int*) malloc(num_elements * sizeof(int));
+        P1 = (float*) malloc(num_elements * sizeof(float));
+        P2 = (float*) malloc(num_elements * sizeof(float));
+        P3 = (float*) malloc(num_elements * sizeof(float));
+        P4 = (float*) malloc(num_elements * sizeof(float));
+        P5 = (float*) malloc(num_elements * sizeof(float));
+        P6 = (float*) malloc(num_elements * sizeof(float));
+        P7 = (float*) malloc(num_elements * sizeof(float));
     }
+
+    comm = MPI_Wtime();
 
     // Multiply matrices in parallel
     multiplyMatrixParallel(M1, M2, P1, 0, k, size);
@@ -365,6 +376,8 @@ int main(int argc, char **argv) {
     multiplyMatrixParallel(M9, M10, P5, 0, k, size);
     multiplyMatrixParallel(M11, M12, P6, 0, k, size);
     multiplyMatrixParallel(M13, M14, P7, 0, k, size);
+
+    endProducts = MPI_Wtime();
 
     free(M2);
     free(M4);
@@ -384,11 +397,11 @@ int main(int argc, char **argv) {
         free(M11);
         free(M13);
 
-        int *C11, *C12, *C21, *C22, *C;
-        C = (int*) malloc(n * n * sizeof(int));
+        float *C11, *C12, *C21, *C22, *C;
+        C = (float*) malloc(n * n * sizeof(float));
 
         // Calculate matrices to compute matrix C
-        int *T1, *T2, *T3, *T4;
+        float *T1, *T2, *T3, *T4;
         T1 = addMatrix(P1, P4, k);
         T2 = subtractMatrix(T1, P5, k);
         C11 = addMatrix(T2, P7, k);
@@ -431,13 +444,16 @@ int main(int argc, char **argv) {
         //printMatrix(C, n, n);
 
         free(C);
-
-        end = MPI_Wtime();
+  
     }
+
+    end = MPI_Wtime();
 
     MPI_Finalize();
 
     if(rank == 0) {
+        printf("Time for communication: %f ms\n", (comm-start)*1000);
+        printf("Time for products: %f ms\n", (endProducts-comm)*1000);
         printf("Time took parallel Strassen: %f ms\n", (end-start)*1000);
     }
     
