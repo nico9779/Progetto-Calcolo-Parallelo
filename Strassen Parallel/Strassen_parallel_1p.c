@@ -3,6 +3,19 @@
 #include <time.h>
 #include <mpi.h>
 
+double average(double times[], int size) {
+
+    double average = 0;
+
+    for(int i=0; i<size; i++) {
+        average += times[i];
+    }
+
+    average = average/size;
+
+    return average;
+}
+
 // Add two square matrices
 float* addMatrix(float* M1, float* M2, int n) {
 
@@ -241,20 +254,15 @@ int main(int argc, char **argv) {
     const int n = 4096;
     const int k = n/2;
     const int num_elements = k*k;
+    const int repetition = 5;
 
     int rank, size;
-    double start, end, comm, endProducts;
+    double start, end;
+    double times[repetition];
 
     float *A, *B;
 
     float *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
-    M2 = (float*) malloc(num_elements * sizeof(float));
-    M4 = (float*) malloc(num_elements * sizeof(float));
-    M6 = (float*) malloc(num_elements * sizeof(float));
-    M8 = (float*) malloc(num_elements * sizeof(float));
-    M10 = (float*) malloc(num_elements * sizeof(float));
-    M12 = (float*) malloc(num_elements * sizeof(float));
-    M14 = (float*) malloc(num_elements * sizeof(float));
 
     float *P1, *P2, *P3, *P4, *P5, *P6, *P7;
 
@@ -263,7 +271,6 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-    //***** SEQUENTIAL PHASE *****//
 
     if(rank == 0) {
 
@@ -279,52 +286,119 @@ int main(int argc, char **argv) {
                 B[i*n+j] = rand()%10+1;
             }
         }
+    }
 
-        // Calculate time to run Strassen sequential algorithm
-        start = MPI_Wtime();
-        float *C = strassenMatrix(A, B, n);
-        end = MPI_Wtime();
+    //***** SEQUENTIAL PHASE *****//
 
-        free(C);
+    if(rank == 0) {
 
-        printf("Time took sequential Strassen: %f ms\n", (end-start)*1000);
+        for(int i=0; i<repetition; i++) {
+
+            // Calculate time to run Strassen sequential algorithm
+            start = MPI_Wtime();
+            float *C = strassenMatrix(A, B, n);
+            end = MPI_Wtime();
+
+            times[i] = (end-start)*1000;
+
+            free(C);
+        }
+
+        printf("Average time took sequential Strassen: %f ms\n", average(times, repetition));
 
     }
 
     //***** PARALLEL PHASE *****//
 
-    start = MPI_Wtime();
+    for(int i=0; i<repetition; i++) {
 
-    if(rank == 0) {
+        M2 = (float*) malloc(num_elements * sizeof(float));
+        M4 = (float*) malloc(num_elements * sizeof(float));
+        M6 = (float*) malloc(num_elements * sizeof(float));
+        M8 = (float*) malloc(num_elements * sizeof(float));
+        M10 = (float*) malloc(num_elements * sizeof(float));
+        M12 = (float*) malloc(num_elements * sizeof(float));
+        M14 = (float*) malloc(num_elements * sizeof(float));
 
-        // Decompose A and B into 8 submatrices
-        float *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
-        A11 = (float*) malloc(num_elements * sizeof(float));
-        A12 = (float*) malloc(num_elements * sizeof(float));
-        A21 = (float*) malloc(num_elements * sizeof(float));
-        A22 = (float*) malloc(num_elements * sizeof(float));
-        B11 = (float*) malloc(num_elements * sizeof(float));
-        B12 = (float*) malloc(num_elements * sizeof(float));
-        B21 = (float*) malloc(num_elements * sizeof(float));
-        B22 = (float*) malloc(num_elements * sizeof(float));
+        start = MPI_Wtime();
 
-        for(int i=0; i<k; i++) {
-            for(int j=0; j<k; j++) {
-                int index = i*k+j;
-                int index_1 = i*n+j;
-                int index_2 = i*n+k+j;
-                int index_3 = (k+i)*n+j;
-                int index_4 = (k+i)*n+k+j;
-                A11[index] = A[index_1];
-                A12[index] = A[index_2];
-                A21[index] = A[index_3];
-                A22[index] = A[index_4];
-                B11[index] = B[index_1];
-                B12[index] = B[index_2];
-                B21[index] = B[index_3];
-                B22[index] = B[index_4];
+        if(rank == 0) {
+
+            // Decompose A and B into 8 submatrices
+            float *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
+            A11 = (float*) malloc(num_elements * sizeof(float));
+            A12 = (float*) malloc(num_elements * sizeof(float));
+            A21 = (float*) malloc(num_elements * sizeof(float));
+            A22 = (float*) malloc(num_elements * sizeof(float));
+            B11 = (float*) malloc(num_elements * sizeof(float));
+            B12 = (float*) malloc(num_elements * sizeof(float));
+            B21 = (float*) malloc(num_elements * sizeof(float));
+            B22 = (float*) malloc(num_elements * sizeof(float));
+
+            for(int i=0; i<k; i++) {
+                for(int j=0; j<k; j++) {
+                    int index = i*k+j;
+                    int index_1 = i*n+j;
+                    int index_2 = i*n+k+j;
+                    int index_3 = (k+i)*n+j;
+                    int index_4 = (k+i)*n+k+j;
+                    A11[index] = A[index_1];
+                    A12[index] = A[index_2];
+                    A21[index] = A[index_3];
+                    A22[index] = A[index_4];
+                    B11[index] = B[index_1];
+                    B12[index] = B[index_2];
+                    B21[index] = B[index_3];
+                    B22[index] = B[index_4];
+                }
             }
-	    }
+
+            free(M2);
+            free(M4);
+            free(M6);
+            free(M8);
+            free(M10);
+            free(M12);
+            free(M14);
+
+            M1 = addMatrix(A11, A22, k);
+            M2 = addMatrix(B11, B22, k);
+            M3 = addMatrix(A21, A22, k);
+            M4 = B11;
+            M5 = A11;
+            M6 = subtractMatrix(B12, B22, k);
+            M7 = A22;
+            M8 = subtractMatrix(B21, B11, k);
+            M9 = addMatrix(A11, A12, k);
+            M10 = B22;
+            M11 = subtractMatrix(A21, A11, k);
+            M12 = addMatrix(B11, B12, k);
+            M13 = subtractMatrix(A12, A22, k);
+            M14 = addMatrix(B21, B22, k);
+
+            free(A12);
+            free(A21);
+            free(B12);
+            free(B21);
+
+            // Allocate memory for the Strassen products
+            P1 = (float*) malloc(num_elements * sizeof(float));
+            P2 = (float*) malloc(num_elements * sizeof(float));
+            P3 = (float*) malloc(num_elements * sizeof(float));
+            P4 = (float*) malloc(num_elements * sizeof(float));
+            P5 = (float*) malloc(num_elements * sizeof(float));
+            P6 = (float*) malloc(num_elements * sizeof(float));
+            P7 = (float*) malloc(num_elements * sizeof(float));
+        }
+
+        // Multiply matrices in parallel
+        multiplyMatrixParallel(M1, M2, P1, 0, k, size);
+        multiplyMatrixParallel(M3, M4, P2, 0, k, size);
+        multiplyMatrixParallel(M5, M6, P3, 0, k, size);
+        multiplyMatrixParallel(M7, M8, P4, 0, k, size);
+        multiplyMatrixParallel(M9, M10, P5, 0, k, size);
+        multiplyMatrixParallel(M11, M12, P6, 0, k, size);
+        multiplyMatrixParallel(M13, M14, P7, 0, k, size);
 
         free(M2);
         free(M4);
@@ -334,127 +408,77 @@ int main(int argc, char **argv) {
         free(M12);
         free(M14);
 
-        M1 = addMatrix(A11, A22, k);
-        M2 = addMatrix(B11, B22, k);
-        M3 = addMatrix(A21, A22, k);
-        M4 = B11;
-        M5 = A11;
-        M6 = subtractMatrix(B12, B22, k);
-        M7 = A22;
-        M8 = subtractMatrix(B21, B11, k);
-        M9 = addMatrix(A11, A12, k);
-        M10 = B22;
-        M11 = subtractMatrix(A21, A11, k);
-        M12 = addMatrix(B11, B12, k);
-        M13 = subtractMatrix(A12, A22, k);
-        M14 = addMatrix(B21, B22, k);
+        if(rank == 0) {
 
-        free(A);
-        free(B);
-        free(A12);
-        free(A21);
-        free(B12);
-        free(B21);
+            free(M1);
+            free(M3);
+            free(M5);
+            free(M7);
+            free(M9);
+            free(M11);
+            free(M13);
 
-        // Allocate memory for the Strassen products
-        P1 = (float*) malloc(num_elements * sizeof(float));
-        P2 = (float*) malloc(num_elements * sizeof(float));
-        P3 = (float*) malloc(num_elements * sizeof(float));
-        P4 = (float*) malloc(num_elements * sizeof(float));
-        P5 = (float*) malloc(num_elements * sizeof(float));
-        P6 = (float*) malloc(num_elements * sizeof(float));
-        P7 = (float*) malloc(num_elements * sizeof(float));
-    }
+            float *C11, *C12, *C21, *C22, *C;
+            C = (float*) malloc(n * n * sizeof(float));
 
-    comm = MPI_Wtime();
+            // Calculate matrices to compute matrix C
+            float *T1, *T2, *T3, *T4;
+            T1 = addMatrix(P1, P4, k);
+            T2 = subtractMatrix(T1, P5, k);
+            C11 = addMatrix(T2, P7, k);
 
-    // Multiply matrices in parallel
-    multiplyMatrixParallel(M1, M2, P1, 0, k, size);
-    multiplyMatrixParallel(M3, M4, P2, 0, k, size);
-    multiplyMatrixParallel(M5, M6, P3, 0, k, size);
-    multiplyMatrixParallel(M7, M8, P4, 0, k, size);
-    multiplyMatrixParallel(M9, M10, P5, 0, k, size);
-    multiplyMatrixParallel(M11, M12, P6, 0, k, size);
-    multiplyMatrixParallel(M13, M14, P7, 0, k, size);
+            C12 = addMatrix(P3, P5, k);
+            C21 = addMatrix(P2, P4, k);
 
-    endProducts = MPI_Wtime();
+            T3 = subtractMatrix(P1, P2, k);
+            T4 = addMatrix(T3, P3, k);
+            C22 = addMatrix(T4, P6, k);
 
-    free(M2);
-    free(M4);
-    free(M6);
-    free(M8);
-    free(M10);
-    free(M12);
-    free(M14);
-
-    if(rank == 0) {
-
-        free(M1);
-        free(M3);
-        free(M5);
-        free(M7);
-        free(M9);
-        free(M11);
-        free(M13);
-
-        float *C11, *C12, *C21, *C22, *C;
-        C = (float*) malloc(n * n * sizeof(float));
-
-        // Calculate matrices to compute matrix C
-        float *T1, *T2, *T3, *T4;
-        T1 = addMatrix(P1, P4, k);
-        T2 = subtractMatrix(T1, P5, k);
-        C11 = addMatrix(T2, P7, k);
-
-        C12 = addMatrix(P3, P5, k);
-        C21 = addMatrix(P2, P4, k);
-
-        T3 = subtractMatrix(P1, P2, k);
-        T4 = addMatrix(T3, P3, k);
-        C22 = addMatrix(T4, P6, k);
-
-        for(int i=0; i<k; i++) {
-            for(int j=0; j<k; j++) {
-                int index = i*k+j;
-                C[i*n+j] = C11[index];
-                C[i*n+j+k] = C12[index];
-                C[(k+i)*n+j] = C21[index];
-                C[(k+i)*n+k+j] = C22[index];
+            for(int i=0; i<k; i++) {
+                for(int j=0; j<k; j++) {
+                    int index = i*k+j;
+                    C[i*n+j] = C11[index];
+                    C[i*n+j+k] = C12[index];
+                    C[(k+i)*n+j] = C21[index];
+                    C[(k+i)*n+k+j] = C22[index];
+                }
             }
-	    }
 
-        free(T1);
-        free(T2);
-        free(T3);
-        free(T4);
+            free(T1);
+            free(T2);
+            free(T3);
+            free(T4);
 
-        free(C11);
-        free(C12);
-        free(C21);
-        free(C22);
+            free(C11);
+            free(C12);
+            free(C21);
+            free(C22);
 
-        free(P1);
-        free(P2);
-        free(P3);
-        free(P4);
-        free(P5);
-        free(P6);
-        free(P7);
+            free(P1);
+            free(P2);
+            free(P3);
+            free(P4);
+            free(P5);
+            free(P6);
+            free(P7);
 
-        //printMatrix(C, n, n);
+            //printMatrix(C, n, n);
 
-        free(C);
-  
+            free(C);
+    
+        }
+
+        end = MPI_Wtime();
+
+        times[i] = (end-start)*1000;
     }
-
-    end = MPI_Wtime();
 
     MPI_Finalize();
 
     if(rank == 0) {
-        printf("Time for communication: %f ms\n", (comm-start)*1000);
-        printf("Time for products: %f ms\n", (endProducts-comm)*1000);
-        printf("Time took parallel Strassen: %f ms\n", (end-start)*1000);
+        free(A);
+        free(B);
+        printf("Average time took parallel Strassen: %f ms\n", average(times, repetition));
     }
     
     return 0;
