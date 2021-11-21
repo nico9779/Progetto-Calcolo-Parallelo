@@ -3,6 +3,19 @@
 #include <time.h>
 #include <mpi.h>
 
+double average(double times[], int size) {
+
+    double average = 0;
+
+    for(int i=0; i<size; i++) {
+        average += times[i];
+    }
+
+    average = average/size;
+
+    return average;
+}
+
 // Add two square matrices
 float* addMatrix(float* M1, float* M2, int n) {
 
@@ -241,11 +254,13 @@ int main(int argc, char **argv) {
     const int n = 4096;
     const int k = n/2;
     const int num_elements = k*k;
+    const int repetition = 5;
 
     int rank, size;
     MPI_Request req[8];
     MPI_Status status;
     double start, end;
+    double times[repetition];
 
 	float *A, *B;
 
@@ -261,10 +276,9 @@ int main(int argc, char **argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	//***** SEQUENTIAL PHASE *****//
 
     if(rank == 0) {
-        
+
         // Generate matrices A and B
         A = (float*) malloc(n * n * sizeof(float));
         B = (float*) malloc(n * n * sizeof(float));
@@ -277,326 +291,340 @@ int main(int argc, char **argv) {
                 B[i*n+j] = rand()%10+1;
             }
         }
+    }
 
-        // Calculate time to run Strassen sequential algorithm
-        start = MPI_Wtime();
-        float *C = strassenMatrix(A, B, n);
-        end = MPI_Wtime();
+    //***** SEQUENTIAL PHASE *****//
 
-        free(C);
+    if(rank == 0) {  
 
-        printf("Time took sequential Strassen: %f ms\n", (end-start)*1000);
+        for(int i=0; i<repetition; i++) {
 
-	}
+            // Calculate time to run Strassen sequential algorithm
+            start = MPI_Wtime();
+            float *C = strassenMatrix(A, B, n);
+            end = MPI_Wtime();
+
+            times[i] = (end-start)*1000;
+
+            free(C);
+        }
+
+        printf("Average time took sequential Strassen: %f ms\n", average(times, repetition));
+    }
 
     //***** PARALLEL PHASE *****//
 
-	start = MPI_Wtime();
+    for(int i=0; i<repetition; i++) {
 
-	if(rank == 0) { 
+        start = MPI_Wtime();
 
-        // Decompose A and B into 8 submatrices
-        float *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
-        A11 = (float*) malloc(num_elements * sizeof(float));
-        A12 = (float*) malloc(num_elements * sizeof(float));
-        A21 = (float*) malloc(num_elements * sizeof(float));
-        A22 = (float*) malloc(num_elements * sizeof(float));
-        B11 = (float*) malloc(num_elements * sizeof(float));
-        B12 = (float*) malloc(num_elements * sizeof(float));
-        B21 = (float*) malloc(num_elements * sizeof(float));
-        B22 = (float*) malloc(num_elements * sizeof(float));
+        if(rank == 0) { 
 
-        for(int i=0; i<k; i++) {
-            for(int j=0; j<k; j++) {
-                int index = i*k+j;
-                int index_1 = i*n+j;
-                int index_2 = i*n+k+j;
-                int index_3 = (k+i)*n+j;
-                int index_4 = (k+i)*n+k+j;
-                A11[index] = A[index_1];
-                A12[index] = A[index_2];
-                A21[index] = A[index_3];
-                A22[index] = A[index_4];
-                B11[index] = B[index_1];
-                B12[index] = B[index_2];
-                B21[index] = B[index_3];
-                B22[index] = B[index_4];
+            // Decompose A and B into 8 submatrices
+            float *A11,*A12,*A21,*A22,*B11,*B12,*B21,*B22;
+            A11 = (float*) malloc(num_elements * sizeof(float));
+            A12 = (float*) malloc(num_elements * sizeof(float));
+            A21 = (float*) malloc(num_elements * sizeof(float));
+            A22 = (float*) malloc(num_elements * sizeof(float));
+            B11 = (float*) malloc(num_elements * sizeof(float));
+            B12 = (float*) malloc(num_elements * sizeof(float));
+            B21 = (float*) malloc(num_elements * sizeof(float));
+            B22 = (float*) malloc(num_elements * sizeof(float));
+
+            for(int i=0; i<k; i++) {
+                for(int j=0; j<k; j++) {
+                    int index = i*k+j;
+                    int index_1 = i*n+j;
+                    int index_2 = i*n+k+j;
+                    int index_3 = (k+i)*n+j;
+                    int index_4 = (k+i)*n+k+j;
+                    A11[index] = A[index_1];
+                    A12[index] = A[index_2];
+                    A21[index] = A[index_3];
+                    A22[index] = A[index_4];
+                    B11[index] = B[index_1];
+                    B12[index] = B[index_2];
+                    B21[index] = B[index_3];
+                    B22[index] = B[index_4];
+                }
             }
-	    }
 
-        // #0 compute P1 and P6
-        float *T1, *T2, *T3, *T4, *T5, *T6, *T7, *T8, *T9, *T10, *T11, *T12, *T13, *T14;
+            // #0 compute P1 and P6
+            float *T1, *T2, *T3, *T4, *T5, *T6, *T7, *T8, *T9, *T10, *T11, *T12, *T13, *T14;
 
-        T1 = addMatrix(A11, A22, k);
-        T2 = addMatrix(B11, B22, k);
-        T3 = addMatrix(A21, A22, k);
-        T4 = B11;
-        T5 = A11;
-        T6 = subtractMatrix(B12, B22, k);
-        T7 = A22;
-        T8 = subtractMatrix(B21, B11, k);
-        T9 = addMatrix(A11, A12, k);
-        T10 = B22;
-        T11 = subtractMatrix(A21, A11, k);
-        T12 = addMatrix(B11, B12, k);
-        T13 = subtractMatrix(A12, A22, k);
-        T14 = addMatrix(B21, B22, k);
+            T1 = addMatrix(A11, A22, k);
+            T2 = addMatrix(B11, B22, k);
+            T3 = addMatrix(A21, A22, k);
+            T4 = B11;
+            T5 = A11;
+            T6 = subtractMatrix(B12, B22, k);
+            T7 = A22;
+            T8 = subtractMatrix(B21, B11, k);
+            T9 = addMatrix(A11, A12, k);
+            T10 = B22;
+            T11 = subtractMatrix(A21, A11, k);
+            T12 = addMatrix(B11, B12, k);
+            T13 = subtractMatrix(A12, A22, k);
+            T14 = addMatrix(B21, B22, k);
 
-        // Send matrices to other processors
-        MPI_Isend(T1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Isend(T2, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Isend(T3, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-        MPI_Isend(T4, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-        MPI_Isend(T5, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-        MPI_Isend(T6, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-        MPI_Isend(T7, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
-        MPI_Isend(T8, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
-        MPI_Isend(T9, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
-        MPI_Isend(T10, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
-        MPI_Isend(T11, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
-        MPI_Isend(T12, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
-        MPI_Isend(T13, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
-        MPI_Isend(T14, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
+            // Send matrices to other processors
+            MPI_Isend(T1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Isend(T2, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Isend(T3, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
+            MPI_Isend(T4, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
+            MPI_Isend(T5, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Isend(T6, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Isend(T7, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
+            MPI_Isend(T8, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
+            MPI_Isend(T9, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Isend(T10, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Isend(T11, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
+            MPI_Isend(T12, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
+            MPI_Isend(T13, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
+            MPI_Isend(T14, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
 
-        free(A);
-        free(B);
-        free(A12);
-        free(A21);
-        free(B12);
-        free(B21);
+            free(A12);
+            free(A21);
+            free(B12);
+            free(B21);
 
-		free(T1);
-		free(T2);
-		free(T3);
-		free(T4);
-        free(T5);
-		free(T6);
-		free(T7);
-		free(T8);
-        free(T9);
-		free(T10);
-		free(T11);
-		free(T12);
-        free(T13);
-		free(T14);
-    }
+            free(T1);
+            free(T2);
+            free(T3);
+            free(T4);
+            free(T5);
+            free(T6);
+            free(T7);
+            free(T8);
+            free(T9);
+            free(T10);
+            free(T11);
+            free(T12);
+            free(T13);
+            free(T14);
+        }
 
-	if(rank == 1) {
-        float *T1, *T2;
-        T1 = (float*) malloc(num_elements * sizeof(float));
-        T2 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T1, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Irecv(T2, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Wait(&req[1], &status);
+        if(rank == 1) {
+            float *T1, *T2;
+            T1 = (float*) malloc(num_elements * sizeof(float));
+            T2 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T1, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Irecv(T2, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Wait(&req[1], &status);
 
-        
-		P1 = strassenMatrix(T1, T2, k);
+            
+            P1 = strassenMatrix(T1, T2, k);
 
-		MPI_Isend(P1, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Isend(P1, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
 
 
-		free(T1);
-		free(T2);
-    }
+            free(T1);
+            free(T2);
+        }
 
-    if(rank == 2) {
-        float *T3, *T4;
-        T3 = (float*) malloc(num_elements * sizeof(float));
-        T4 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T3, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-        MPI_Irecv(T4, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-        MPI_Wait(&req[2], &status);
+        if(rank == 2) {
+            float *T3, *T4;
+            T3 = (float*) malloc(num_elements * sizeof(float));
+            T4 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T3, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
+            MPI_Irecv(T4, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
+            MPI_Wait(&req[2], &status);
 
-        
-		P2 = strassenMatrix(T3, T4, k);
+            
+            P2 = strassenMatrix(T3, T4, k);
 
-		MPI_Isend(P2, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-
-
-		free(T3);
-		free(T4);
-    }
-
-    if(rank == 3) {
-        float *T5, *T6;
-        T5 = (float*) malloc(num_elements * sizeof(float));
-        T6 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T5, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-        MPI_Irecv(T6, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-        MPI_Wait(&req[3], &status);
-
-        
-		P3 = strassenMatrix(T5, T6, k);
-
-		MPI_Isend(P3, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Isend(P2, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
 
 
-		free(T5);
-		free(T6);
-    }
+            free(T3);
+            free(T4);
+        }
 
-    if(rank == 4) {
-        float *T7, *T8;
-        T7 = (float*) malloc(num_elements * sizeof(float));
-        T8 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T7, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
-        MPI_Irecv(T8, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
-        MPI_Wait(&req[4], &status);
+        if(rank == 3) {
+            float *T5, *T6;
+            T5 = (float*) malloc(num_elements * sizeof(float));
+            T6 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T5, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Irecv(T6, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Wait(&req[3], &status);
 
-        
-		P4 = strassenMatrix(T7, T8, k);
+            
+            P3 = strassenMatrix(T5, T6, k);
 
-		MPI_Isend(P4, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
-
-
-		free(T7);
-		free(T8);
-    }
-
-    if(rank == 5) {
-        float *T9, *T10;
-        T9 = (float*) malloc(num_elements * sizeof(float));
-        T10 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T9, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
-        MPI_Irecv(T10, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
-        MPI_Wait(&req[5], &status);
-
-        
-		P5 = strassenMatrix(T9, T10, k);
-
-		MPI_Isend(P5, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Isend(P3, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
 
 
-		free(T9);
-		free(T10);
-    }
+            free(T5);
+            free(T6);
+        }
 
-    if(rank == 6) {
-        float *T11, *T12;
-        T11 = (float*) malloc(num_elements * sizeof(float));
-        T12 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T11, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
-        MPI_Irecv(T12, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
-        MPI_Wait(&req[6], &status);
+        if(rank == 4) {
+            float *T7, *T8;
+            T7 = (float*) malloc(num_elements * sizeof(float));
+            T8 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T7, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
+            MPI_Irecv(T8, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
+            MPI_Wait(&req[4], &status);
 
-        
-		P6 = strassenMatrix(T11, T12, k);
+            
+            P4 = strassenMatrix(T7, T8, k);
 
-		MPI_Isend(P6, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
-
-
-		free(T11);
-		free(T12);
-    }
-
-    if(rank == 7) {
-        float *T13, *T14;
-        T13 = (float*) malloc(num_elements * sizeof(float));
-        T14 = (float*) malloc(num_elements * sizeof(float));
-        MPI_Irecv(T13, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
-        MPI_Irecv(T14, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
-        MPI_Wait(&req[7], &status);
-
-        
-		P7 = strassenMatrix(T13, T14, k);
-
-		MPI_Isend(P7, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
+            MPI_Isend(P4, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
 
 
-		free(T13);
-		free(T14);
-    }
+            free(T7);
+            free(T8);
+        }
+
+        if(rank == 5) {
+            float *T9, *T10;
+            T9 = (float*) malloc(num_elements * sizeof(float));
+            T10 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T9, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Irecv(T10, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Wait(&req[5], &status);
+
+            
+            P5 = strassenMatrix(T9, T10, k);
+
+            MPI_Isend(P5, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
 
 
-	if(rank == 0) {
-        float *C11, *C12, *C21, *C22, *C;
-        C = (float*) malloc(n * n * sizeof(float));
+            free(T9);
+            free(T10);
+        }
 
-        P1 = (float*) malloc(num_elements * sizeof(float));
-		P2 = (float*) malloc(num_elements * sizeof(float));
-		P3 = (float*) malloc(num_elements * sizeof(float));
-		P4 = (float*) malloc(num_elements * sizeof(float));
-		P5 = (float*) malloc(num_elements * sizeof(float));
-        P6 = (float*) malloc(num_elements * sizeof(float));
-		P7 = (float*) malloc(num_elements * sizeof(float));
-        
-        MPI_Irecv(P1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-        MPI_Irecv(P2, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-        MPI_Irecv(P3, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-        MPI_Irecv(P4, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
-        MPI_Irecv(P5, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
-        MPI_Irecv(P6, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
-        MPI_Irecv(P7, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
+        if(rank == 6) {
+            float *T11, *T12;
+            T11 = (float*) malloc(num_elements * sizeof(float));
+            T12 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T11, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
+            MPI_Irecv(T12, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
+            MPI_Wait(&req[6], &status);
 
-        MPI_Wait(&req[1], &status);
-        MPI_Wait(&req[2], &status);
-        MPI_Wait(&req[3], &status);
-        MPI_Wait(&req[4], &status);
-        MPI_Wait(&req[5], &status);
-        MPI_Wait(&req[6], &status);
-        MPI_Wait(&req[7], &status);
+            
+            P6 = strassenMatrix(T11, T12, k);
 
-        //Calculate matrices to compute matrix C
-        float *T1, *T2, *T3, *T4;
-        T1 = addMatrix(P1, P4, k);
-        T2 = subtractMatrix(T1, P5, k);
-        C11 = addMatrix(T2, P7, k);
+            MPI_Isend(P6, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
 
-		C12 = addMatrix(P3, P5, k);
-		C21 = addMatrix(P2, P4, k);
 
-        T3 = subtractMatrix(P1, P2, k);
-        T4 = addMatrix(T3, P3, k);
-        C22 = addMatrix(T4, P6, k);
+            free(T11);
+            free(T12);
+        }
 
-        for(int i=0; i<k; i++) {
-            for(int j=0; j<k; j++) {
-                int index = i*k+j;
-                C[i*n+j] = C11[index];
-                C[i*n+j+k] = C12[index];
-                C[(k+i)*n+j] = C21[index];
-                C[(k+i)*n+k+j] = C22[index];
+        if(rank == 7) {
+            float *T13, *T14;
+            T13 = (float*) malloc(num_elements * sizeof(float));
+            T14 = (float*) malloc(num_elements * sizeof(float));
+            MPI_Irecv(T13, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
+            MPI_Irecv(T14, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
+            MPI_Wait(&req[7], &status);
+
+            
+            P7 = strassenMatrix(T13, T14, k);
+
+            MPI_Isend(P7, num_elements, MPI_FLOAT, 0, 7, MPI_COMM_WORLD, &req[7]);
+
+
+            free(T13);
+            free(T14);
+        }
+
+
+        if(rank == 0) {
+            float *C11, *C12, *C21, *C22, *C;
+            C = (float*) malloc(n * n * sizeof(float));
+
+            P1 = (float*) malloc(num_elements * sizeof(float));
+            P2 = (float*) malloc(num_elements * sizeof(float));
+            P3 = (float*) malloc(num_elements * sizeof(float));
+            P4 = (float*) malloc(num_elements * sizeof(float));
+            P5 = (float*) malloc(num_elements * sizeof(float));
+            P6 = (float*) malloc(num_elements * sizeof(float));
+            P7 = (float*) malloc(num_elements * sizeof(float));
+            
+            MPI_Irecv(P1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
+            MPI_Irecv(P2, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
+            MPI_Irecv(P3, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
+            MPI_Irecv(P4, num_elements, MPI_FLOAT, 4, 4, MPI_COMM_WORLD, &req[4]);
+            MPI_Irecv(P5, num_elements, MPI_FLOAT, 5, 5, MPI_COMM_WORLD, &req[5]);
+            MPI_Irecv(P6, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
+            MPI_Irecv(P7, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
+
+            MPI_Wait(&req[1], &status);
+            MPI_Wait(&req[2], &status);
+            MPI_Wait(&req[3], &status);
+            MPI_Wait(&req[4], &status);
+            MPI_Wait(&req[5], &status);
+            MPI_Wait(&req[6], &status);
+            MPI_Wait(&req[7], &status);
+
+            //Calculate matrices to compute matrix C
+            float *T1, *T2, *T3, *T4;
+            T1 = addMatrix(P1, P4, k);
+            T2 = subtractMatrix(T1, P5, k);
+            C11 = addMatrix(T2, P7, k);
+
+            C12 = addMatrix(P3, P5, k);
+            C21 = addMatrix(P2, P4, k);
+
+            T3 = subtractMatrix(P1, P2, k);
+            T4 = addMatrix(T3, P3, k);
+            C22 = addMatrix(T4, P6, k);
+
+            for(int i=0; i<k; i++) {
+                for(int j=0; j<k; j++) {
+                    int index = i*k+j;
+                    C[i*n+j] = C11[index];
+                    C[i*n+j+k] = C12[index];
+                    C[(k+i)*n+j] = C21[index];
+                    C[(k+i)*n+k+j] = C22[index];
+                }
             }
-	    }
 
-        free(T1);
-        free(T2);
-        free(T3);
-        free(T4);
+            free(T1);
+            free(T2);
+            free(T3);
+            free(T4);
 
-        free(C11);
-        free(C12);
-        free(C21);
-        free(C22);
+            free(C11);
+            free(C12);
+            free(C21);
+            free(C22);
 
-        //printMatrix(C, n);
+            //printMatrix(C, n);
 
-        free(C);
+            free(C);
 
-        end = MPI_Wtime();
+            end = MPI_Wtime();
+
+            times[i] = (end-start)*1000;
+        }
+
+        MPI_Barrier(MPI_COMM_WORLD);
+
+        if(P1 != NULL)
+            free(P1);
+        if(P2 != NULL)
+            free(P2);
+        if(P3 != NULL)
+            free(P3);
+        if(P4 != NULL)
+            free(P4);
+        if(P5 != NULL)
+            free(P5);
+        if(P6 != NULL)
+            free(P6);
+        if(P7 != NULL)
+            free(P7);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
-
-	if(P1 != NULL)
-		free(P1);
-	if(P2 != NULL)
-		free(P2);
-	if(P3 != NULL)
-		free(P3);
-	if(P4 != NULL)
-		free(P4);
-	if(P5 != NULL)
-		free(P5);
-	if(P6 != NULL)
-		free(P6);
-	if(P7 != NULL)
-		free(P7);
 
     MPI_Finalize();
 
 	if(rank == 0) {
-        printf("Time took parallel Strassen: %f ms\n", (end-start)*1000);
+        free(A);
+        free(B);
+        printf("Average time took parallel Strassen: %f ms\n", average(times, repetition));
     }
 
     return 0;
