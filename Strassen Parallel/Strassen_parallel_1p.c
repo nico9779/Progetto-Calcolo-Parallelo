@@ -3,6 +3,8 @@
 #include <time.h>
 #include <mpi.h>
 
+#define CHUNK 32
+
 double average(double times[], int size) {
 
     double average = 0;
@@ -87,21 +89,24 @@ void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int s
     
     // Multiply the two matrices to obtain a piece of matrix C
     float a = 0;
-    for(int i=0; i<n/size; i++) {
-        for(int k=0; k<n; k++) {
-            a = local_A[i*n+k];
-            for(int j=0; j<n; j+=8) {
-                local_C[i*n+j] += a * B[k*n+j];
-                local_C[i*n+j+1] += a * B[k*n+j+1];
-                local_C[i*n+j+2] += a * B[k*n+j+2];
-                local_C[i*n+j+3] += a * B[k*n+j+3];
-                local_C[i*n+j+4] += a * B[k*n+j+4];
-                local_C[i*n+j+5] += a * B[k*n+j+5];
-                local_C[i*n+j+6] += a * B[k*n+j+6];
-                local_C[i*n+j+7] += a * B[k*n+j+7];
+    for(int kk=0; kk<n; kk+=CHUNK) {
+        for(int i=0; i<n/size; ++i) {
+            for(int k=kk; k<kk+CHUNK; ++k) {
+                a = local_A[i*n+k];
+                for(int j=0; j<n; j+=8) {
+                    local_C[i*n+j] += a * B[k*n+j];
+                    local_C[i*n+j+1] += a * B[k*n+j+1];
+                    local_C[i*n+j+2] += a * B[k*n+j+2];
+                    local_C[i*n+j+3] += a * B[k*n+j+3];
+                    local_C[i*n+j+4] += a * B[k*n+j+4];
+                    local_C[i*n+j+5] += a * B[k*n+j+5];
+                    local_C[i*n+j+6] += a * B[k*n+j+6];
+                    local_C[i*n+j+7] += a * B[k*n+j+7];
+                }
             }
         }
     }
+    
 
     free(local_A);
 
@@ -312,6 +317,8 @@ int main(int argc, char **argv) {
 
     for(int i=0; i<repetition; i++) {
 
+        start = MPI_Wtime();
+
         M2 = (float*) malloc(num_elements * sizeof(float));
         M4 = (float*) malloc(num_elements * sizeof(float));
         M6 = (float*) malloc(num_elements * sizeof(float));
@@ -319,8 +326,6 @@ int main(int argc, char **argv) {
         M10 = (float*) malloc(num_elements * sizeof(float));
         M12 = (float*) malloc(num_elements * sizeof(float));
         M14 = (float*) malloc(num_elements * sizeof(float));
-
-        start = MPI_Wtime();
 
         if(rank == 0) {
 
