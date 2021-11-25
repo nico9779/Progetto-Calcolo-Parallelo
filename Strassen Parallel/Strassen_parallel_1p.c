@@ -54,22 +54,24 @@ float* multiplyMatrixSequential(float* A, float* B, int n) {
 	float* C = (float*) calloc(n * n, sizeof(float));
     float a = 0;
 
-	for(int i = 0; i < n; i++) {
-		for(int k = 0; k < n; k++) {
-            a = A[i*n+k];
-			for(int j = 0; j < n; j+=8) {
-                C[i*n+j] += a * B[k*n+j];
-                C[i*n+j+1] += a * B[k*n+j+1];
-                C[i*n+j+2] += a * B[k*n+j+2];
-                C[i*n+j+3] += a * B[k*n+j+3];
-                C[i*n+j+4] += a * B[k*n+j+4];
-                C[i*n+j+5] += a * B[k*n+j+5];
-                C[i*n+j+6] += a * B[k*n+j+6];
-                C[i*n+j+7] += a * B[k*n+j+7];
-			}
-		}
-	}
-
+    for(int kk=0; kk<n; kk+=CHUNK) {
+        for(int i=0; i<n; ++i) {
+            for(int k=kk; k<kk+CHUNK; ++k) {
+                a = A[i*n+k];
+                for(int j=0; j<n; j+=8) {
+                    C[i*n+j] += a * B[k*n+j];
+                    C[i*n+j+1] += a * B[k*n+j+1];
+                    C[i*n+j+2] += a * B[k*n+j+2];
+                    C[i*n+j+3] += a * B[k*n+j+3];
+                    C[i*n+j+4] += a * B[k*n+j+4];
+                    C[i*n+j+5] += a * B[k*n+j+5];
+                    C[i*n+j+6] += a * B[k*n+j+6];
+                    C[i*n+j+7] += a * B[k*n+j+7];
+                }
+            }
+	    }
+    }
+	
 	return C;
 }
 
@@ -89,6 +91,7 @@ void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int s
     
     // Multiply the two matrices to obtain a piece of matrix C
     float a = 0;
+
     for(int kk=0; kk<n; kk+=CHUNK) {
         for(int i=0; i<n/size; ++i) {
             for(int k=kk; k<kk+CHUNK; ++k) {
@@ -133,8 +136,29 @@ void printMatrix(float* M, int n) {
 float* strassenMatrix(float* A, float* B, int n) {
 
 	// Base case
-	if(n <= 64) {
-    	return multiplyMatrixSequential(A, B, n);
+	if(n <= 256) {
+        float* C = (float*) calloc(n * n, sizeof(float));
+    	float a = 0;
+
+        for(int kk=0; kk<n; kk+=CHUNK) {
+            for(int i=0; i<n; ++i) {
+                for(int k=kk; k<kk+CHUNK; ++k) {
+                    a = A[i*n+k];
+                    for(int j=0; j<n; j+=8) {
+                        C[i*n+j] += a * B[k*n+j];
+                        C[i*n+j+1] += a * B[k*n+j+1];
+                        C[i*n+j+2] += a * B[k*n+j+2];
+                        C[i*n+j+3] += a * B[k*n+j+3];
+                        C[i*n+j+4] += a * B[k*n+j+4];
+                        C[i*n+j+5] += a * B[k*n+j+5];
+                        C[i*n+j+6] += a * B[k*n+j+6];
+                        C[i*n+j+7] += a * B[k*n+j+7];
+                    }
+                }
+            }
+        }
+
+        return C;
 	}
 
 	// Initialize matrix C to return in output (C = A*B)
