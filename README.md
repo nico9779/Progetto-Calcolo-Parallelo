@@ -20,7 +20,7 @@ The repository is structured in this way:
 	
 To compile and execute the code use the following commands:	
 ```
-$ spack load intel-parallel-studio@professional.2019.4 
-$ mpicc Strassen_parallel.c -o Strassen_parallel.o
+$ spack load intel-parallel-studio@professional.2019.4
+$ mpicc Strassen_parallel.c -o Strassen_parallel.o -O3
 $ sbatch Strassen_parallel_slurm.slurm
 ```
