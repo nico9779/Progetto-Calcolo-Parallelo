@@ -4,7 +4,7 @@
 #include <time.h>
 #include <xmmintrin.h>
 
-#define CHUNK 16
+#define CHUNK 32
 
 // Add two square matrices
 float* addMatrix(float* M1, float* M2, int n) {
@@ -159,6 +159,283 @@ void multiplyMatrixChunk(float **A, float **B, float **C, int n) {
 		}
 	}
 }
+
+float* multiplyMatrixChunk1(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int ii=0; ii<n; ii+=CHUNK) {
+			for(int jj=0; jj<n; jj+=CHUNK) {
+				for(int k=kk; k<kk+CHUNK; ++k) {
+					for(int i=ii; i<ii+CHUNK; ++i) {
+						a = A[i*n+k];
+						for(int j=jj; j<jj+CHUNK; j+=8) {
+							C[i*n+j] += a*B[k*n+j];
+							C[i*n+j+1] += a*B[k*n+j+1];
+							C[i*n+j+2] += a*B[k*n+j+2];
+							C[i*n+j+3] += a*B[k*n+j+3];
+							C[i*n+j+4] += a*B[k*n+j+4];
+							C[i*n+j+5] += a*B[k*n+j+5];
+							C[i*n+j+6] += a*B[k*n+j+6];
+							C[i*n+j+7] += a*B[k*n+j+7];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk2(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int i=0; i<n; ++i) {
+			for(int k=kk; k<kk+CHUNK; ++k) {
+				a = A[i*n+k];
+				for(int j=0; j<n; j+=8) {
+					C[i*n+j] += a*B[k*n+j];
+					C[i*n+j+1] += a*B[k*n+j+1];
+					C[i*n+j+2] += a*B[k*n+j+2];
+					C[i*n+j+3] += a*B[k*n+j+3];
+					C[i*n+j+4] += a*B[k*n+j+4];
+					C[i*n+j+5] += a*B[k*n+j+5];
+					C[i*n+j+6] += a*B[k*n+j+6];
+					C[i*n+j+7] += a*B[k*n+j+7];
+				}
+			}
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk3(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int k=kk; k<kk+CHUNK; ++k) {
+			for(int i=0; i<n; ++i) {
+				a = A[i*n+k];
+				for(int j=0; j<n; j+=8) {
+					C[i*n+j] += a*B[k*n+j];
+					C[i*n+j+1] += a*B[k*n+j+1];
+					C[i*n+j+2] += a*B[k*n+j+2];
+					C[i*n+j+3] += a*B[k*n+j+3];
+					C[i*n+j+4] += a*B[k*n+j+4];
+					C[i*n+j+5] += a*B[k*n+j+5];
+					C[i*n+j+6] += a*B[k*n+j+6];
+					C[i*n+j+7] += a*B[k*n+j+7];
+				}
+			}
+		}         
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk4(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int ii=0; ii<n; ii+=CHUNK) {
+		for(int i=ii; i<ii+CHUNK; ++i) {
+			for(int k=0; k<n; ++k) {
+				a = A[i*n+k];
+				for(int j=0; j<n; j+=8) {
+					C[i*n+j] += a*B[k*n+j];
+					C[i*n+j+1] += a*B[k*n+j+1];
+					C[i*n+j+2] += a*B[k*n+j+2];
+					C[i*n+j+3] += a*B[k*n+j+3];
+					C[i*n+j+4] += a*B[k*n+j+4];
+					C[i*n+j+5] += a*B[k*n+j+5];
+					C[i*n+j+6] += a*B[k*n+j+6];
+					C[i*n+j+7] += a*B[k*n+j+7];
+				}
+			}
+		}         
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk5(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int jj=0; jj<n; jj+=CHUNK) {
+		for(int i=0; i<n; ++i) {
+			for(int k=0; k<n; ++k) {
+				a = A[i*n+k];
+				for(int j=jj; j<jj+CHUNK; j+=8) {
+					C[i*n+j] += a*B[k*n+j];
+					C[i*n+j+1] += a*B[k*n+j+1];
+					C[i*n+j+2] += a*B[k*n+j+2];
+					C[i*n+j+3] += a*B[k*n+j+3];
+					C[i*n+j+4] += a*B[k*n+j+4];
+					C[i*n+j+5] += a*B[k*n+j+5];
+					C[i*n+j+6] += a*B[k*n+j+6];
+					C[i*n+j+7] += a*B[k*n+j+7];
+				}
+			}
+		}         
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk6(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int jj=0; jj<n; jj+=CHUNK) {
+			for(int i=0; i<n; ++i) {
+				for(int k=kk; k<kk+CHUNK; ++k) {
+					a = A[i*n+k];
+					for(int j=jj; j<jj+CHUNK; j+=8) {
+						C[i*n+j] += a*B[k*n+j];
+						C[i*n+j+1] += a*B[k*n+j+1];
+						C[i*n+j+2] += a*B[k*n+j+2];
+						C[i*n+j+3] += a*B[k*n+j+3];
+						C[i*n+j+4] += a*B[k*n+j+4];
+						C[i*n+j+5] += a*B[k*n+j+5];
+						C[i*n+j+6] += a*B[k*n+j+6];
+						C[i*n+j+7] += a*B[k*n+j+7];
+					}
+				}
+			}         
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk7(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int ii=0; ii<n; ii+=CHUNK) {
+		for(int kk=0; kk<n; kk+=CHUNK) {
+			for(int i=ii; i<ii+CHUNK; ++i) {
+				for(int k=kk; k<kk+CHUNK; ++k) {
+					a = A[i*n+k];
+					for(int j=0; j<n; j+=8) {
+						C[i*n+j] += a*B[k*n+j];
+						C[i*n+j+1] += a*B[k*n+j+1];
+						C[i*n+j+2] += a*B[k*n+j+2];
+						C[i*n+j+3] += a*B[k*n+j+3];
+						C[i*n+j+4] += a*B[k*n+j+4];
+						C[i*n+j+5] += a*B[k*n+j+5];
+						C[i*n+j+6] += a*B[k*n+j+6];
+						C[i*n+j+7] += a*B[k*n+j+7];
+					}
+				}
+			}         
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk8(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int ii=0; ii<n; ii+=CHUNK) {
+			for(int k=kk; k<kk+CHUNK; ++k) {
+				for(int i=ii; i<ii+CHUNK; ++i) {
+					a = A[i*n+k];
+					for(int j=0; j<n; j+=8) {
+						C[i*n+j] += a*B[k*n+j];
+						C[i*n+j+1] += a*B[k*n+j+1];
+						C[i*n+j+2] += a*B[k*n+j+2];
+						C[i*n+j+3] += a*B[k*n+j+3];
+						C[i*n+j+4] += a*B[k*n+j+4];
+						C[i*n+j+5] += a*B[k*n+j+5];
+						C[i*n+j+6] += a*B[k*n+j+6];
+						C[i*n+j+7] += a*B[k*n+j+7];
+					}
+				}
+			}         
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk9(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int ii=0; ii<n; ii+=CHUNK) {
+		for(int kk=0; kk<n; kk+=CHUNK) {
+			for(int jj=0; jj<n; jj+=CHUNK) {
+				for(int i=ii; i<ii+CHUNK; ++i) {
+					for(int k=kk; k<kk+CHUNK; ++k) {
+						a = A[i*n+k];
+						for(int j=jj; j<jj+CHUNK; j+=8) {
+							C[i*n+j] += a*B[k*n+j];
+							C[i*n+j+1] += a*B[k*n+j+1];
+							C[i*n+j+2] += a*B[k*n+j+2];
+							C[i*n+j+3] += a*B[k*n+j+3];
+							C[i*n+j+4] += a*B[k*n+j+4];
+							C[i*n+j+5] += a*B[k*n+j+5];
+							C[i*n+j+6] += a*B[k*n+j+6];
+							C[i*n+j+7] += a*B[k*n+j+7];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return C;
+}
+
+float* multiplyMatrixChunk10(float *A, float *B, int n) {
+
+	float* C = (float*) calloc(n * n, sizeof(float));
+	float a = 0;
+
+	for(int kk=0; kk<n; kk+=CHUNK) {
+		for(int ii=0; ii<n; ii+=CHUNK) {
+			for(int i=ii; i<ii+CHUNK; ++i) {
+				for(int k=kk; k<kk+CHUNK; ++k) {
+					a = A[i*n+k];
+					for(int j=0; j<n; j+=8) {
+						C[i*n+j] += a*B[k*n+j];
+						C[i*n+j+1] += a*B[k*n+j+1];
+						C[i*n+j+2] += a*B[k*n+j+2];
+						C[i*n+j+3] += a*B[k*n+j+3];
+						C[i*n+j+4] += a*B[k*n+j+4];
+						C[i*n+j+5] += a*B[k*n+j+5];
+						C[i*n+j+6] += a*B[k*n+j+6];
+						C[i*n+j+7] += a*B[k*n+j+7];
+					}
+				}
+			}
+		}
+	}
+
+	return C;
+}
+
 
 void printMatrix(float* M, int n) {
 
@@ -546,11 +823,11 @@ float* strassenMatrixKIJ(float* A, float* B, int n) {
 	return C;
 }
 
-float* strassenMatrixTransposition(float* A, float* B, int n) {
+float* strassenMatrixChunk(float* A, float* B, int n, int base) {
 
 	// Base case
-	if(n <= 64) {
-    	return multiplyMatrixTransposition(A, B, n);
+	if(n <= base) {
+    		return multiplyMatrixChunk2(A, B, n);
 	}
 
     float* C = (float*) malloc(n * n * sizeof(float));
@@ -599,13 +876,13 @@ float* strassenMatrixTransposition(float* A, float* B, int n) {
 	float* M10 = addMatrix(B11, B12, k);
 
 	// Create the Strassen matrices
-	float* P1 = strassenMatrixTransposition(A11, M1, k);
-	float* P2 = strassenMatrixTransposition(M2, B22, k);
-	float* P3 = strassenMatrixTransposition(M3, B11, k);
-	float* P4 = strassenMatrixTransposition(A22, M4, k);
-	float* P5 = strassenMatrixTransposition(M5, M6, k);
-	float* P6 = strassenMatrixTransposition(M7, M8, k);
-	float* P7 = strassenMatrixTransposition(M9, M10, k);
+	float* P1 = strassenMatrixChunk(A11, M1, k, base);
+	float* P2 = strassenMatrixChunk(M2, B22, k, base);
+	float* P3 = strassenMatrixChunk(M3, B11, k, base);
+	float* P4 = strassenMatrixChunk(A22, M4, k, base);
+	float* P5 = strassenMatrixChunk(M5, M6, k, base);
+	float* P6 = strassenMatrixChunk(M7, M8, k, base);
+	float* P7 = strassenMatrixChunk(M9, M10, k, base);
 
 	free(A11);
     free(A12);
@@ -700,20 +977,82 @@ int main(int argc, char **argv) {
 
         for(int i=0; i<n; i++){
             for(int j=0; j<n; j++){
-                A[i*n+j] = rand()%10+1;
-                B[i*n+j] = rand()%10+1;
-                A1[i][j] = rand()%10+1;
-                B1[i][j] = rand()%10+1;
+                A[i*n+j] = i+j;
+                B[i*n+j] = i-j;
+                A1[i][j] = i+j;
+                B1[i][j] = i-j;
                 C1[i][j] = 0;
             }
         }
-
+	
         start = MPI_Wtime();
         multiplyMatrixChunk(A1, B1, C1, n);
         end = MPI_Wtime();
 
         printf("Time took sequential MM Chunk: %f ms\n", (end-start)*1000);
 
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk1(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 1: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk2(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 2: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk3(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 3: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk4(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 4: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk5(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 5: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk6(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 6: %f ms\n", (end-start)*1000);
+
+        start = MPI_Wtime();
+        C = multiplyMatrixChunk7(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 7: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk8(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 8: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk9(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 9: %f ms\n", (end-start)*1000);
+
+	start = MPI_Wtime();
+        C = multiplyMatrixChunk10(A, B, n);
+        end = MPI_Wtime();
+
+        printf("Time took sequential MM Chunk versione 10: %f ms\n", (end-start)*1000);
+
+
+	
         start = MPI_Wtime();
         C = multiplyMatrixIKJ(A, B, n);
         end = MPI_Wtime();
@@ -743,18 +1082,20 @@ int main(int argc, char **argv) {
         end = MPI_Wtime();
 
         printf("Time took sequential MM Transposition: %f ms\n", (end-start)*1000);
-
+	
+	/*
         start = MPI_Wtime();
         C = strassenMatrixTransposition(A, B, n);
         end = MPI_Wtime();
 
         printf("Time took strassen Transposition: %f ms\n", (end-start)*1000);
-
+	*/
         start = MPI_Wtime();
         multiplyMatrixSSE(A, B, D, n);
         end = MPI_Wtime();
 
         printf("Time took sequential MM with SSE: %f ms\n", (end-start)*1000);
+	
 
         start = MPI_Wtime();
         C = strassenMatrixSSE(A, B, n);

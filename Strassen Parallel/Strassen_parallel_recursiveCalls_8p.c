@@ -287,8 +287,8 @@ int main(int argc, char **argv) {
     int rank, size;
     MPI_Request req[8];
     MPI_Status status;
-    double start, end;
-    double times[repetition];
+    double start, end, comm_time, start_comm, end_comm;
+    double times[repetition], communication[repetition];
 
 	float *A, *B;
 
@@ -315,8 +315,8 @@ int main(int argc, char **argv) {
 
         for(int i=0; i<n; i++){
             for(int j=0; j<n; j++){
-                A[i*n+j] = rand()%10+1;
-                B[i*n+j] = rand()%10+1;
+                A[i*n+j] = i+j;
+                B[i*n+j] = i-j;
             }
         }
     }
@@ -344,6 +344,9 @@ int main(int argc, char **argv) {
 
     for(int i=0; i<repetition; i++) {
 
+	comm_time = 0;
+
+	MPI_Barrier(MPI_COMM_WORLD);
         start = MPI_Wtime();
 
         if(rank == 0) { 
@@ -395,6 +398,7 @@ int main(int argc, char **argv) {
             T13 = subtractMatrix(A12, A22, k);
             T14 = addMatrix(B21, B22, k);
 
+	    start_comm = MPI_Wtime();
             // Send matrices to other processors
             MPI_Isend(T1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
             MPI_Isend(T2, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
@@ -410,6 +414,10 @@ int main(int argc, char **argv) {
             MPI_Isend(T12, num_elements, MPI_FLOAT, 6, 6, MPI_COMM_WORLD, &req[6]);
             MPI_Isend(T13, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
             MPI_Isend(T14, num_elements, MPI_FLOAT, 7, 7, MPI_COMM_WORLD, &req[7]);
+ 			
+ 	    end_comm = MPI_Wtime();
+
+	    comm_time += (end_comm-start_comm)*1000;
 
             free(A12);
             free(A21);
@@ -571,6 +579,7 @@ int main(int argc, char **argv) {
             P6 = (float*) malloc(num_elements * sizeof(float));
             P7 = (float*) malloc(num_elements * sizeof(float));
             
+	    start_comm = MPI_Wtime();
             MPI_Irecv(P1, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
             MPI_Irecv(P2, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
             MPI_Irecv(P3, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
@@ -586,6 +595,10 @@ int main(int argc, char **argv) {
             MPI_Wait(&req[5], &status);
             MPI_Wait(&req[6], &status);
             MPI_Wait(&req[7], &status);
+
+	    end_comm = MPI_Wtime();
+
+	    comm_time += (end_comm-start_comm)*1000;	
 
             //Calculate matrices to compute matrix C
             float *T1, *T2, *T3, *T4;
@@ -623,13 +636,13 @@ int main(int argc, char **argv) {
             //printMatrix(C, n);
 
             free(C);
-
-            end = MPI_Wtime();
-
-            times[i] = (end-start)*1000;
         }
 
         MPI_Barrier(MPI_COMM_WORLD);
+	end = MPI_Wtime();
+
+        times[i] = (end-start)*1000;
+	communication[i] = comm_time;
 
         if(P1 != NULL)
             free(P1);
@@ -653,6 +666,8 @@ int main(int argc, char **argv) {
         free(A);
         free(B);
         printf("Average time took parallel Strassen: %f ms\n", average(times, repetition));
+        printf("Average time took for communication: %f ms\n", average(communication, repetition));
+
     }
 
     return 0;

@@ -76,19 +76,24 @@ float* multiplyMatrixSequential(float* A, float* B, int n) {
 }
 
 // Multiply two matrices in parallel
-void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int size) {
+void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int size, double *comm_time) {
 
     int num_elements = n*n/size;
+    double start, end;	
+
 
     float* local_A = (float*) malloc(num_elements * sizeof(float));
     float* local_C = (float*) calloc(num_elements, sizeof(float));
-
+	
+    start = MPI_Wtime();
     // Scatter matrix A between all processors
     MPI_Scatter(A, num_elements, MPI_FLOAT, local_A, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
 
     // Broadcast matrix B between all processors
     MPI_Bcast(B, n*n, MPI_FLOAT, root, MPI_COMM_WORLD);
     
+    end = MPI_Wtime();
+
     // Multiply the two matrices to obtain a piece of matrix C
     float a = 0;
 
@@ -109,12 +114,18 @@ void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int s
             }
         }
     }
-    
 
     free(local_A);
 
+    *comm_time = *comm_time + (end - start)*1000;
+
+    start = MPI_Wtime();
     // Gather C from all processors to compute the product
     MPI_Gather(local_C, num_elements, MPI_FLOAT, C, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
+
+    end = MPI_Wtime();
+
+    *comm_time = *comm_time + (end - start)*1000;
 
     free(local_C);
 }
@@ -286,8 +297,8 @@ int main(int argc, char **argv) {
     const int repetition = 5;
 
     int rank, size;
-    double start, end;
-    double times[repetition];
+    double start, end, comm_time;
+    double times[repetition], communication[repetition];
 
     float *A, *B;
 
@@ -311,8 +322,8 @@ int main(int argc, char **argv) {
 
         for(int i=0; i<n; i++){
             for(int j=0; j<n; j++){
-                A[i*n+j] = rand()%10+1;
-                B[i*n+j] = rand()%10+1;
+                A[i*n+j] = i+j;
+                B[i*n+j] = i-j;
             }
         }
     }
@@ -341,6 +352,8 @@ int main(int argc, char **argv) {
 
     for(int i=0; i<repetition; i++) {
 
+
+	MPI_Barrier(MPI_COMM_WORLD);
         start = MPI_Wtime();
 
         M2 = (float*) malloc(num_elements * sizeof(float));
@@ -420,22 +433,28 @@ int main(int argc, char **argv) {
             P7 = (float*) malloc(num_elements * sizeof(float));
         }
 
+	comm_time = 0;
         // Multiply matrices in parallel
-        multiplyMatrixParallel(M1, M2, P1, 0, k, size);
-        multiplyMatrixParallel(M3, M4, P2, 0, k, size);
-        multiplyMatrixParallel(M5, M6, P3, 0, k, size);
-        multiplyMatrixParallel(M7, M8, P4, 0, k, size);
-        multiplyMatrixParallel(M9, M10, P5, 0, k, size);
-        multiplyMatrixParallel(M11, M12, P6, 0, k, size);
-        multiplyMatrixParallel(M13, M14, P7, 0, k, size);
+        multiplyMatrixParallel(M1, M2, P1, 0, k, size, &comm_time);
+	free(M2);
 
-        free(M2);
-        free(M4);
-        free(M6);
-        free(M8);
-        free(M10);
-        free(M12);
-        free(M14);
+        multiplyMatrixParallel(M3, M4, P2, 0, k, size, &comm_time);
+	free(M4);
+
+        multiplyMatrixParallel(M5, M6, P3, 0, k, size, &comm_time);
+	free(M6);
+
+        multiplyMatrixParallel(M7, M8, P4, 0, k, size, &comm_time);
+	free(M8);
+
+        multiplyMatrixParallel(M9, M10, P5, 0, k, size, &comm_time);
+	free(M10);
+
+        multiplyMatrixParallel(M11, M12, P6, 0, k, size, &comm_time);
+	free(M12);
+
+        multiplyMatrixParallel(M13, M14, P7, 0, k, size, &comm_time);
+	free(M14);
 
         if(rank == 0) {
 
@@ -496,10 +515,12 @@ int main(int argc, char **argv) {
             free(C);
     
         }
-
+	
+	MPI_Barrier(MPI_COMM_WORLD);
         end = MPI_Wtime();
 
         times[i] = (end-start)*1000;
+	communication[i] = comm_time;
     }
 
     MPI_Finalize();
@@ -508,6 +529,7 @@ int main(int argc, char **argv) {
         free(A);
         free(B);
         printf("Average time took parallel Strassen: %f ms\n", average(times, repetition));
+	printf("Average time took for communication: %f ms\n", average(communication, repetition));
     }
     
     return 0;
