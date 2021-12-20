@@ -1,4 +1,4 @@
-/*******	PARALLEL STRASSEN MATRIX MULTIPLICATION ALGORITHM USING 4 PROCESSES	******/
+/******  COMPARE SEQUENTIAL AND PARALLEL STRASSEN ALGORITHM	******/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,6 +76,65 @@ float* multiplyMatrixSequential(float* A, float* B, int n) {
     }
 	
 	return C;
+}
+
+// Multiply two matrices in parallel
+void multiplyMatrixParallel(float* A, float* B, float* C, int root, int n, int size, double *comm_time) {
+
+    int num_elements = n*n/size;        // Number of elements scattered between all processes
+    double start, end;	                // start and end are used to evaluate the communication time
+
+
+    float* local_A = (float*) malloc(num_elements * sizeof(float));
+    float* local_C = (float*) calloc(num_elements, sizeof(float));
+	
+    start = MPI_Wtime();
+
+    // Scatter matrix A between all processors
+    MPI_Scatter(A, num_elements, MPI_FLOAT, local_A, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
+
+    // Broadcast matrix B between all processors
+    MPI_Bcast(B, n*n, MPI_FLOAT, root, MPI_COMM_WORLD);
+    
+    end = MPI_Wtime();
+
+    // Multiply the two matrices to obtain a piece of matrix C
+    float a = 0;
+
+    for(int kk=0; kk<n; kk+=CHUNK) {
+        for(int i=0; i<n/size; ++i) {
+            for(int k=kk; k<kk+CHUNK; ++k) {
+                a = local_A[i*n+k];
+                for(int j=0; j<n; j+=8) {
+                    local_C[i*n+j] += a * B[k*n+j];
+                    local_C[i*n+j+1] += a * B[k*n+j+1];
+                    local_C[i*n+j+2] += a * B[k*n+j+2];
+                    local_C[i*n+j+3] += a * B[k*n+j+3];
+                    local_C[i*n+j+4] += a * B[k*n+j+4];
+                    local_C[i*n+j+5] += a * B[k*n+j+5];
+                    local_C[i*n+j+6] += a * B[k*n+j+6];
+                    local_C[i*n+j+7] += a * B[k*n+j+7];
+                }
+            }
+        }
+    }
+
+    free(local_A);
+    
+    // Compute communication time in ms
+    *comm_time = *comm_time + (end - start)*1000;
+
+    start = MPI_Wtime();
+
+    // Gather C from all processors to compute the product
+    MPI_Gather(local_C, num_elements, MPI_FLOAT, C, num_elements, MPI_FLOAT, root, MPI_COMM_WORLD);
+
+    end = MPI_Wtime();
+
+    // Compute communication time in ms
+    *comm_time = *comm_time + (end - start)*1000;
+
+    free(local_C);
 }
 
 // Print square matrix in output
@@ -247,20 +306,14 @@ int main(int argc, char **argv) {
     const int repetition = 5;           // number of time to repeat the multiplication and obtain an average execution time
 
     int rank, size;                     // rank identify the process and size is the number of processes available
-    MPI_Request req[7];
-    MPI_Status status;
-    double start, end;                  // start and end are used to evaluate the execution time
-    double execution[repetition];           // array containing execution times of the algorithm for differents execution
+    double start, end, comm_time;       // variables used to evaluate execution and communication time
+    double execution[repetition], communication[repetition];    // array containing execution and communication times of the algorithm for differents execution
 
-	float *A, *B;
+    float *A, *B;
 
-	float *P1 = NULL;
-    float *P2 = NULL;
-    float *P3 = NULL;
-    float *P4 = NULL;
-    float *P5 = NULL;
-    float *P6 = NULL;
-    float *P7 = NULL;
+    float *M1, *M2, *M3, *M4, *M5, *M6, *M7, *M8, *M9, *M10, *M11, *M12, *M13, *M14;
+
+    float *P1, *P2, *P3, *P4, *P5, *P6, *P7;
 
     // Initialize MPI
     MPI_Init(&argc, &argv);
@@ -286,7 +339,7 @@ int main(int argc, char **argv) {
 
     //***** SEQUENTIAL PHASE *****//
 
-    if(rank == 0) {  
+    if(rank == 0) {
 
         for(int i=0; i<repetition; i++) {
 
@@ -301,15 +354,24 @@ int main(int argc, char **argv) {
         }
 
         printf("Average time took sequential Strassen: %f ms\n", average(execution, repetition));
+
     }
 
     //***** PARALLEL PHASE *****//
 
     for(int i=0; i<repetition; i++) {
-        
+
         // Before starting measuring the execution time I call MPI_Barrier to make sure that all processes are ready to proceed
-		MPI_Barrier(MPI_COMM_WORLD);
+	    MPI_Barrier(MPI_COMM_WORLD);
         start = MPI_Wtime();
+
+        M2 = (float*) malloc(num_elements * sizeof(float));
+        M4 = (float*) malloc(num_elements * sizeof(float));
+        M6 = (float*) malloc(num_elements * sizeof(float));
+        M8 = (float*) malloc(num_elements * sizeof(float));
+        M10 = (float*) malloc(num_elements * sizeof(float));
+        M12 = (float*) malloc(num_elements * sizeof(float));
+        M14 = (float*) malloc(num_elements * sizeof(float));
 
         if(rank == 0) {
 
@@ -342,171 +404,83 @@ int main(int argc, char **argv) {
                 }
             }
 
-            // Send matrices to other processors
-            MPI_Isend(A11, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Isend(A12, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Isend(B12, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Isend(B22, num_elements, MPI_FLOAT, 1, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Isend(A21, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Isend(B21, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Isend(A22, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Isend(B11, num_elements, MPI_FLOAT, 2, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Isend(A22, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Isend(B22, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Isend(A12, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Isend(B21, num_elements, MPI_FLOAT, 3, 3, MPI_COMM_WORLD, &req[3]);
+            free(M2);
+            free(M4);
+            free(M6);
+            free(M8);
+            free(M10);
+            free(M12);
+            free(M14);
 
-            // #0 compute P1 and P6
-            float *T1, *T2, *T3, *T4;
-            T1 = addMatrix(A11, A22, k);
-            T2 = addMatrix(B11, B22, k);
-            T3 = subtractMatrix(A21, A11, k);
-            T4 = addMatrix(B11, B12, k);
+            // Compute the matrices to multiply
 
-            free(A11);
+            M1 = addMatrix(A11, A22, k);
+            M2 = addMatrix(B11, B22, k);
+            M3 = addMatrix(A21, A22, k);
+            M4 = B11;
+            M5 = A11;
+            M6 = subtractMatrix(B12, B22, k);
+            M7 = A22;
+            M8 = subtractMatrix(B21, B11, k);
+            M9 = addMatrix(A11, A12, k);
+            M10 = B22;
+            M11 = subtractMatrix(A21, A11, k);
+            M12 = addMatrix(B11, B12, k);
+            M13 = subtractMatrix(A12, A22, k);
+            M14 = addMatrix(B21, B22, k);
+
             free(A12);
             free(A21);
-            free(A22);
-            free(B11);
             free(B12);
             free(B21);
-            free(B22);
 
-            P1 = strassenMultiplication(T1, T2, k);
-            P6 = strassenMultiplication(T3, T4, k);
-
-            free(T1);
-            free(T2);
-            free(T3);
-            free(T4);
-        }
-
-        if(rank == 1) {
-            float *A12, *B12, *A11, *B22;
-            A12 = (float*) malloc(num_elements * sizeof(float));
-            B12 = (float*) malloc(num_elements * sizeof(float));
-            A11 = (float*) malloc(num_elements * sizeof(float));
-            B22 = (float*) malloc(num_elements * sizeof(float));
-
-            // Receive matrices from #0
-            MPI_Irecv(A11, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Irecv(A12, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Irecv(B12, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Irecv(B22, num_elements, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &req[1]);
-            MPI_Wait(&req[1], &status);
-
-            // #1 compute P3 and P5
-
-            float *T1, *T2;
-
-            T1 = subtractMatrix(B12, B22, k);
-            T2 = addMatrix(A11, A12, k);
-            
-            P3 = strassenMultiplication(A11, T1, k);
-            P5 = strassenMultiplication(T2, B22, k);
-            
-            // Send results to #0
-            MPI_Isend(P3, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
-            MPI_Isend(P5, num_elements, MPI_FLOAT, 0, 4, MPI_COMM_WORLD, &req[4]);
-
-            free(A12);
-            free(B12);
-            free(A11);
-            free(B22);
-            free(T1);
-            free(T2);
-        }
-
-        if(rank == 2) {
-            float *A21, *B21, *A22, *B11;
-            A21 = (float*) malloc(num_elements * sizeof(float));
-            B21 = (float*) malloc(num_elements * sizeof(float));
-            A22 = (float*) malloc(num_elements * sizeof(float));
-            B11 = (float*) malloc(num_elements * sizeof(float));
-
-            // Receive matrices from #0
-            MPI_Irecv(A21, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Irecv(B21, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Irecv(A22, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Irecv(B11, num_elements, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &req[2]);
-            MPI_Wait(&req[2], &status);
-
-            // #2 compute P2 and P4
-            float *T1, *T2;
-
-            T1 = addMatrix(A21, A22, k);
-            T2 = subtractMatrix(B21, B11, k);  
-            
-            P2 = strassenMultiplication(T1, B11, k);
-            P4 = strassenMultiplication(A22, T2, k);
-
-            // Send results to #0
-            MPI_Isend(P2, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
-            MPI_Isend(P4, num_elements, MPI_FLOAT, 0, 5, MPI_COMM_WORLD, &req[5]);
-
-            free(A21);
-            free(B21);
-            free(A22);
-            free(B11);
-            free(T1);
-            free(T2);
-        }
-
-        if(rank == 3) {
-            float *A22, *B22, *A12, *B21;
-            A22 = (float*) malloc(num_elements * sizeof(float));
-            B22 = (float*) malloc(num_elements * sizeof(float));
-            A12 = (float*) malloc(num_elements * sizeof(float));
-            B21 = (float*) malloc(num_elements * sizeof(float));
-
-            // Receive matrices from #0
-            MPI_Irecv(A22, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Irecv(B22, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Irecv(A12, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Irecv(B21, num_elements, MPI_FLOAT, 0, 3, MPI_COMM_WORLD, &req[3]);
-            MPI_Wait(&req[3], &status);
-
-            // #3 compute P7
-
-            float *T1, *T2;
-
-            T1 = subtractMatrix(A12, A22, k);
-            T2 = addMatrix(B21, B22, k);
-            
-            P7 = strassenMultiplication(T1, T2, k);
-
-            // Send results to #0
-            MPI_Isend(P7, num_elements, MPI_FLOAT, 0, 6, MPI_COMM_WORLD, &req[6]);
-
-            free(A22);
-            free(B22);
-            free(A12);
-            free(B21);
-            free(T1);
-            free(T2);
-        }
-
-
-        if(rank == 0) {
-            float *C11, *C12, *C21, *C22, *C;
-            C = (float*) malloc(n * n * sizeof(float));
-
+            // Allocate memory for the Strassen products
+            P1 = (float*) malloc(num_elements * sizeof(float));
             P2 = (float*) malloc(num_elements * sizeof(float));
             P3 = (float*) malloc(num_elements * sizeof(float));
             P4 = (float*) malloc(num_elements * sizeof(float));
             P5 = (float*) malloc(num_elements * sizeof(float));
+            P6 = (float*) malloc(num_elements * sizeof(float));
             P7 = (float*) malloc(num_elements * sizeof(float));
+        }
 
-            // Receive matrices from other processes
-            MPI_Irecv(P3, num_elements, MPI_FLOAT, 1, 4, MPI_COMM_WORLD, &req[4]);
-            MPI_Irecv(P5, num_elements, MPI_FLOAT, 1, 4, MPI_COMM_WORLD, &req[4]);
-            MPI_Irecv(P2, num_elements, MPI_FLOAT, 2, 5, MPI_COMM_WORLD, &req[5]);
-            MPI_Irecv(P4, num_elements, MPI_FLOAT, 2, 5, MPI_COMM_WORLD, &req[5]);
-            MPI_Irecv(P7, num_elements, MPI_FLOAT, 3, 6, MPI_COMM_WORLD, &req[6]);
+        // Reset to 0 the communication time
+	    comm_time = 0;
 
-            MPI_Wait(&req[4], &status);
-            MPI_Wait(&req[5], &status);
-            MPI_Wait(&req[6], &status);
+        // Multiply matrices in parallel
+        multiplyMatrixParallel(M1, M2, P1, 0, k, size, &comm_time);
+	    free(M2);
+
+        multiplyMatrixParallel(M3, M4, P2, 0, k, size, &comm_time);
+        free(M4);
+
+        multiplyMatrixParallel(M5, M6, P3, 0, k, size, &comm_time);
+        free(M6);
+
+        multiplyMatrixParallel(M7, M8, P4, 0, k, size, &comm_time);
+        free(M8);
+
+        multiplyMatrixParallel(M9, M10, P5, 0, k, size, &comm_time);
+        free(M10);
+
+        multiplyMatrixParallel(M11, M12, P6, 0, k, size, &comm_time);
+        free(M12);
+
+        multiplyMatrixParallel(M13, M14, P7, 0, k, size, &comm_time);
+        free(M14);
+
+        if(rank == 0) {
+
+            free(M1);
+            free(M3);
+            free(M5);
+            free(M7);
+            free(M9);
+            free(M11);
+            free(M13);
+
+            float *C11, *C12, *C21, *C22, *C;
+            C = (float*) malloc(n * n * sizeof(float));
 
             // Calculate matrices to compute matrix C
             float *T1, *T2, *T3, *T4;
@@ -541,43 +515,38 @@ int main(int argc, char **argv) {
             free(C21);
             free(C22);
 
-            //printMatrix(C, n);
+            free(P1);
+            free(P2);
+            free(P3);
+            free(P4);
+            free(P5);
+            free(P6);
+            free(P7);
+
+            //printMatrix(C, n, n);
 
             free(C);
-            
+    
         }
 
         // Stop measuring execution time and call MPI_Barrier to make sure all nodes are done
-        MPI_Barrier(MPI_COMM_WORLD);
+	    MPI_Barrier(MPI_COMM_WORLD);
         end = MPI_Wtime();
 
-        // Calculate execution time in ms and push it in the array
+        // Calculate execution and communication time in ms and push it in the array
         execution[i] = (end-start)*1000;
-
-        if(P1 != NULL)
-            free(P1);
-        if(P2 != NULL)
-            free(P2);
-        if(P3 != NULL)
-            free(P3);
-        if(P4 != NULL)
-            free(P4);
-        if(P5 != NULL)
-            free(P5);
-        if(P6 != NULL)
-            free(P6);
-        if(P7 != NULL)
-            free(P7);
+	    communication[i] = comm_time;
     }
 
     MPI_Finalize();
 
     // Print results
-	if(rank == 0) {
+    if(rank == 0) {
         free(A);
         free(B);
         printf("Average time took parallel Strassen: %f ms\n", average(execution, repetition));
+	    printf("Average time took for communication: %f ms\n", average(communication, repetition));
     }
-
+    
     return 0;
 }
