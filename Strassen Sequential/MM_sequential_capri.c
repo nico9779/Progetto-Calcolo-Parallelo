@@ -1,9 +1,11 @@
+/******  COMPARE DIFFERENT VERSIONS OF SEQUENTIAL MATRIX MULTIPLICATION ALGORITHM AND STRASSEN ALGORITHM	******/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <mpi.h>
-#include <time.h>
 #include <xmmintrin.h>
 
+// Size of the sub-matrices
 #define CHUNK 32
 
 // Add two square matrices
@@ -36,6 +38,7 @@ float* subtractMatrix(float* M1, float* M2, int n) {
     return temp;
 }
 
+// I-K-J loop
 float* multiplyMatrixIKJ(float* A, float* B, int n) {
 
     float* C = (float*) calloc(n * n, sizeof(float));
@@ -60,6 +63,7 @@ float* multiplyMatrixIKJ(float* A, float* B, int n) {
     return C;
 }
 
+// K-I-J loop
 float* multiplyMatrixKIJ(float* A, float* B, int n) {
 
 	float* C = (float*) calloc(n * n, sizeof(float));
@@ -84,6 +88,7 @@ float* multiplyMatrixKIJ(float* A, float* B, int n) {
 	return C;
 }
 
+// SIMD instructions
 void multiplyMatrixSSE(float *A, float *B, float *C, int n) {
     __m128 ma , *mb , *mc = ( __m128 *) C;
     int t1 ,t2;
@@ -103,6 +108,7 @@ void multiplyMatrixSSE(float *A, float *B, float *C, int n) {
     }
 }
 
+// Traspose matrix B
 float* multiplyMatrixTransposition(float* A, float* B, int n) {
 
 	float* C = (float*) malloc(n * n * sizeof(float));
@@ -136,29 +142,7 @@ float* multiplyMatrixTransposition(float* A, float* B, int n) {
 	return C;
 }
 
-void multiplyMatrixChunk(float **A, float **B, float **C, int n) {
-	float *At1, *Bt1, *Ct1;
-	float *At2, *Bt2, *Ct2;
-	for (int k=0; k<n; k+=CHUNK) {
-		for (int i=0; i<n; i+=CHUNK) {
-			At1 = A[i]+k;
-			for (int j=0; j<n; j+=CHUNK) {
-				Bt1 = B[k]+j;
-				Ct1 = C[i]+j;
-				for (int k1=0; k1<CHUNK; k1++, Bt1+=n, Ct1+=n) {
-					At2 = At1+k1;
-					int i2,i3;
-					for (i2=0; i2<CHUNK; i2++, At2+=n) {
-						float Ac = *At2;
-						for (i3 =0; i3 <CHUNK; i3++) {
-							Ct1[i3]+=Ac* Bt1[i3];
-						}
-					}
-				}
-			}
-		}
-	}
-}
+// DIFFERENT VERSIONS FOR SUBMATRICES SEQUENTIAL MULTIPLICATION
 
 float* multiplyMatrixChunk1(float *A, float *B, int n) {
 
@@ -436,7 +420,31 @@ float* multiplyMatrixChunk10(float *A, float *B, int n) {
 	return C;
 }
 
+void multiplyMatrixChunk11(float **A, float **B, float **C, int n) {
+	float *At1, *Bt1, *Ct1;
+	float *At2, *Bt2, *Ct2;
+	for (int k=0; k<n; k+=CHUNK) {
+		for (int i=0; i<n; i+=CHUNK) {
+			At1 = A[i]+k;
+			for (int j=0; j<n; j+=CHUNK) {
+				Bt1 = B[k]+j;
+				Ct1 = C[i]+j;
+				for (int k1=0; k1<CHUNK; k1++, Bt1+=n, Ct1+=n) {
+					At2 = At1+k1;
+					int i2,i3;
+					for (i2=0; i2<CHUNK; i2++, At2+=n) {
+						float Ac = *At2;
+						for (i3 =0; i3 <CHUNK; i3++) {
+							Ct1[i3]+=Ac* Bt1[i3];
+						}
+					}
+				}
+			}
+		}
+	}
+}
 
+// Print square matrix in output
 void printMatrix(float* M, int n) {
 
 	for(int i=0; i<n; i++) {
@@ -449,6 +457,7 @@ void printMatrix(float* M, int n) {
 	printf("\n");
 }
 
+// Strassen algorithm using SIMD instructions
 float* strassenMatrixSSE(float* A, float* B, int n) {
 
     // Initialize matrix C to return in output (C = A*B)
@@ -577,6 +586,7 @@ float* strassenMatrixSSE(float* A, float* B, int n) {
 	return C;
 }
 
+// Strassen algorithm using IKJ loop
 float* strassenMatrixIKJ(float* A, float* B, int n) {
 
 	// Base case
@@ -700,6 +710,7 @@ float* strassenMatrixIKJ(float* A, float* B, int n) {
 	return C;
 }
 
+// Strassen algorithm using KIJ loop
 float* strassenMatrixKIJ(float* A, float* B, int n) {
 
 	// Base case
@@ -823,6 +834,7 @@ float* strassenMatrixKIJ(float* A, float* B, int n) {
 	return C;
 }
 
+// Strassen algorithm using chunked version
 float* strassenMatrixChunk(float* A, float* B, int n, int base) {
 
 	// Base case
@@ -948,14 +960,16 @@ float* strassenMatrixChunk(float* A, float* B, int n, int base) {
 
 int main(int argc, char **argv) {
 
-    const int n = 4096;
-    int rank, size;
-    double start, end;
+    const int n = 4096;				// n is the size of the matrix
+    int rank, size;					// rank identify the process and size is the number of processes available
+    double start, end;				// variables used to evaluate execution time
 
+	// Initialize MPI
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+	// Initialize matrices
     if(rank == 0) {
         float *A, *B, *C, *D;
 
@@ -973,7 +987,6 @@ int main(int argc, char **argv) {
             C1[i] = (float*) malloc(n * sizeof(float));
         }
 
-        srand(time(NULL));
 
         for(int i=0; i<n; i++){
             for(int j=0; j<n; j++){
@@ -985,73 +998,73 @@ int main(int argc, char **argv) {
             }
         }
 	
-        start = MPI_Wtime();
-        multiplyMatrixChunk(A1, B1, C1, n);
-        end = MPI_Wtime();
+		// Run all algorithms and measure execution time
 
-        printf("Time took sequential MM Chunk: %f ms\n", (end-start)*1000);
-
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk1(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 1: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 1: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk2(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 2: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 2: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk3(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 3: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 3: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk4(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 4: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 4: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk5(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 5: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 5: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk6(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 6: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 6: %f ms\n", (end-start)*1000);
 
         start = MPI_Wtime();
         C = multiplyMatrixChunk7(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 7: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 7: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk8(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 8: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 8: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk9(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 9: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 9: %f ms\n", (end-start)*1000);
 
-	start = MPI_Wtime();
+		start = MPI_Wtime();
         C = multiplyMatrixChunk10(A, B, n);
         end = MPI_Wtime();
 
-        printf("Time took sequential MM Chunk versione 10: %f ms\n", (end-start)*1000);
+        printf("Time took sequential MM Chunk version 10: %f ms\n", (end-start)*1000);
 
+		start = MPI_Wtime();
+        multiplyMatrixChunk11(A1, B1, C1, n);
+        end = MPI_Wtime();
 
+        printf("Time took sequential MM Chunk version 11: %f ms\n", (end-start)*1000);
 	
         start = MPI_Wtime();
         C = multiplyMatrixIKJ(A, B, n);
@@ -1082,20 +1095,12 @@ int main(int argc, char **argv) {
         end = MPI_Wtime();
 
         printf("Time took sequential MM Transposition: %f ms\n", (end-start)*1000);
-	
-	/*
-        start = MPI_Wtime();
-        C = strassenMatrixTransposition(A, B, n);
-        end = MPI_Wtime();
 
-        printf("Time took strassen Transposition: %f ms\n", (end-start)*1000);
-	*/
         start = MPI_Wtime();
         multiplyMatrixSSE(A, B, D, n);
         end = MPI_Wtime();
 
         printf("Time took sequential MM with SSE: %f ms\n", (end-start)*1000);
-	
 
         start = MPI_Wtime();
         C = strassenMatrixSSE(A, B, n);

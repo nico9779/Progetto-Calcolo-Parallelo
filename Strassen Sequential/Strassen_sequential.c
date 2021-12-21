@@ -245,7 +245,7 @@ int main(int argc, char **argv) {
     const int repetition = 5;           // number of time to repeat the multiplication and obtain an average execution time
 
     int rank, size;                     // rank identify the process and size is the number of processes available
-    double start, end;                  // variables used to evaluate execution and communication time
+    double start, end;                  // variables used to evaluate execution time
     double execution[repetition];       // array containing execution and communication times of the algorithm for differents execution
 
     float *A, *B;
