@@ -2,7 +2,8 @@
 
 The repository is structured in this way:
 
-- The file `Report Parallel Computing.docx` is the report for the project
+- The file `Report Parallel Computing.docx` is the word file of the report for the project
+- The file `Report Parallel Computing Nicola Levorato.pdf` is the pdf file of the report for the project
 - The file `Execution times on CAPRI.xlxs` contains tables with the execution times of the sequential 
    and parallel algorithms and the charts on the metrics evaluated
 
